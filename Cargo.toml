@@ -1,0 +1,8 @@
+[package]
+name = "mshio"
+version = "0.1.0"
+authors = ["Fabian Löschner <loeschner@cs.rwth-aachen.de>"]
+edition = "2018"
+
+[dependencies]
+nom = "5.0"
