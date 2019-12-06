@@ -6,3 +6,4 @@ edition = "2018"
 
 [dependencies]
 nom = "5.0"
+num = "0.2"
