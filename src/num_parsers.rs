@@ -3,7 +3,7 @@ use nom::number::complete as numbers;
 use nom::number::Endianness;
 use nom::IResult;
 
-use num::{Float, Integer, NumCast, Signed, Unsigned};
+use num::{Bounded, Float, Integer, NumCast, Signed, Unsigned};
 
 pub fn uint_parser<'a, T: Unsigned + Integer + NumCast, E: ParseError<&'a [u8]>>(
     source_size: usize,

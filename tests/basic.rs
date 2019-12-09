@@ -1,4 +1,4 @@
-//#[test]
+#[test]
 fn does_nothing() {
     assert!(true);
 }
@@ -7,8 +7,6 @@ fn does_nothing() {
 fn bin_file() {
     let circle_2d_bin = include_bytes!("circle_2d_bin.msh");
     mshio::parse(circle_2d_bin);
-
-    assert!(true);
 }
 
 //#[test]

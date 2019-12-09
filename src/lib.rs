@@ -5,7 +5,7 @@ use std::str;
 use nom::bytes::complete::tag;
 use nom::character::complete::digit1;
 use nom::combinator::map;
-use nom::error::ParseError;
+use nom::error::{ParseError, VerboseError};
 use nom::multi::count;
 use nom::number::complete as numbers;
 use nom::number::Endianness;
@@ -23,7 +23,7 @@ use mesh_data::{
 };
 use parsers::{br, sp};
 
-// TODO: Replace panics and unimplemented with Err
+// TODO: Replace panics and unimplemented! calls with Err
 
 /// Debug helper to view u8 slice as utf8 str and print it
 #[allow(dead_code)]
@@ -31,7 +31,9 @@ fn print_u8(text: &str, input: &[u8]) {
     println!("{}: '{}'", text, String::from_utf8_lossy(input));
 }
 
-fn parse_header_section(input: &[u8]) -> IResult<&[u8], Header> {
+fn parse_header_section<'a, E: ParseError<&'a [u8]>>(
+    input: &'a [u8],
+) -> IResult<&'a [u8], Header, E> {
     let from_u8 = |items| str::FromStr::from_str(str::from_utf8(items).unwrap());
 
     let (input, version) = numbers::double(input)?;
@@ -50,8 +52,6 @@ fn parse_header_section(input: &[u8]) -> IResult<&[u8], Header> {
         // Binary file
         let (_, i_be) = numbers::be_i32(input)?;
         let (_, i_le) = numbers::le_i32(input)?;
-
-        println!("be: {}, le: {}", i_be, i_le);
 
         if i_be == 1 {
             Some(Endianness::Big)
@@ -143,7 +143,7 @@ where
 fn parse_entity_section<'a>(
     header: &Header,
     input: &'a [u8],
-) -> IResult<&'a [u8], Entities<i32, f64>> {
+) -> IResult<&'a [u8], Entities<i32, f64>, VerboseError<&'a [u8]>> {
     let size_t_parser = num_parsers::uint_parser::<usize, _>(header.size_t_size, header.endianness);
     let (input, num_points) = size_t_parser(input)?;
     let (input, num_curves) = size_t_parser(input)?;
@@ -166,16 +166,9 @@ fn parse_entity_section<'a>(
         num_surfaces,
     )(input)?;
 
-    println!("Surfaces: {:?}", surfaces);
-
     for _ in 0..num_volumes {
         unimplemented!("Volume entity reading not implemented")
     }
-
-    println!(
-        "numPoints: {}, numCurves: {}, numSurfaces: {}, numVolumes: {}",
-        num_points, num_curves, num_surfaces, num_volumes
-    );
 
     Ok((
         input,
@@ -201,6 +194,7 @@ fn parse_node_entity<
     size_t_parser: SizeTParser,
     int_parser: IntParser,
     double_parser: FloatParser,
+    sparse_tags: bool,
     input: &'a [u8],
 ) -> IResult<&'a [u8], NodeEntity<SizeT, IntT, FloatT>, E>
 where
@@ -231,7 +225,22 @@ where
         Ok((input, node_tag))
     };
 
-    let (input, _node_tags) = count(parse_node_tag, num_nodes_in_block)(input)?;
+    let (input, node_tags) = if sparse_tags {
+        let (input, node_tags) = count(parse_node_tag, num_nodes_in_block)(input)?;
+        (
+            input,
+            Some(
+                node_tags
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, tag)| (tag, i))
+                    .collect::<HashMap<_, _>>(),
+            ),
+        )
+    } else {
+        let (input, _) = count(parse_node_tag, num_nodes_in_block)(input)?;
+        (input, None)
+    };
 
     let parse_node = |input| {
         let (input, x) = double_parser(input)?;
@@ -249,7 +258,7 @@ where
             entity_dim,
             entity_tag,
             parametric,
-            node_tags: None,
+            node_tags,
             nodes,
             parametric_nodes: None,
         },
@@ -259,7 +268,7 @@ where
 fn parse_node_section<'a>(
     header: &Header,
     input: &'a [u8],
-) -> IResult<&'a [u8], Nodes<usize, i32, f64>> {
+) -> IResult<&'a [u8], Nodes<usize, i32, f64>, VerboseError<&'a [u8]>> {
     let size_t_parser = num_parsers::uint_parser::<usize, _>(header.size_t_size, header.endianness);
 
     let (input, num_entity_blocks) = size_t_parser(input)?;
@@ -270,14 +279,16 @@ fn parse_node_section<'a>(
     let int_parser = num_parsers::int_parser::<i32, _>(header.int_size, header.endianness);
     let double_parser = num_parsers::float_parser::<f64, _>(8, header.endianness);
 
-    if min_node_tag == 0 {
+    let sparse_tags = if min_node_tag == 0 {
         panic!("Node tag 0 is reserved for internal use");
     } else if max_node_tag - min_node_tag > num_nodes - 1 {
-        unimplemented!("Sparse node tags are not supported");
-    }
+        true
+    } else {
+        false
+    };
 
     let (input, node_entity_blocks) = count(
-        |i| parse_node_entity(size_t_parser, int_parser, double_parser, i),
+        |i| parse_node_entity(size_t_parser, int_parser, double_parser, sparse_tags, i),
         num_entity_blocks,
     )(input)?;
 
@@ -291,6 +302,10 @@ fn parse_node_section<'a>(
     ))
 }
 
+/// Returns the number of nodes per element type defined by GMSH
+///
+/// See http://gmsh.info/doc/texinfo/gmsh.html#MSH-file-format
+/// and https://gitlab.onelab.info/gmsh/gmsh/blob/master/Common/GmshDefines.h
 fn nodes_per_element(element_type: i32) -> usize {
     match element_type {
         1 => 2,
@@ -306,7 +321,7 @@ fn nodes_per_element(element_type: i32) -> usize {
 
 fn parse_element_entity<
     'a,
-    SizeT: Unsigned + Integer + num::ToPrimitive + Hash,
+    SizeT: Unsigned + Integer + num::ToPrimitive + Hash + Copy,
     IntT: Signed + Integer + num::ToPrimitive,
     SizeTParser,
     IntParser,
@@ -314,6 +329,7 @@ fn parse_element_entity<
 >(
     size_t_parser: SizeTParser,
     int_parser: IntParser,
+    sparse_tags: bool,
     input: &'a [u8],
 ) -> IResult<&'a [u8], ElementEntity<SizeT, IntT>, E>
 where
@@ -350,7 +366,17 @@ where
 
     let (input, elements) = count(parse_element, num_elements_in_block)(input)?;
 
-    // TODO: Extract map of element tags
+    let element_tags = if sparse_tags {
+        Some(
+            elements
+                .iter()
+                .enumerate()
+                .map(|(i, ele)| (ele.element_tag, i))
+                .collect::<HashMap<_, _>>(),
+        )
+    } else {
+        None
+    };
 
     Ok((
         input,
@@ -358,7 +384,7 @@ where
             entity_dim,
             entity_tag,
             element_type,
-            element_tags: None,
+            element_tags,
             elements,
         },
     ))
@@ -367,7 +393,7 @@ where
 fn parse_element_section<'a>(
     header: &Header,
     input: &'a [u8],
-) -> IResult<&'a [u8], Elements<usize, i32>> {
+) -> IResult<&'a [u8], Elements<usize, i32>, VerboseError<&'a [u8]>> {
     let size_t_parser = num_parsers::uint_parser::<usize, _>(header.size_t_size, header.endianness);
 
     let (input, num_entity_blocks) = size_t_parser(input)?;
@@ -377,14 +403,16 @@ fn parse_element_section<'a>(
 
     let int_parser = num_parsers::int_parser::<i32, _>(header.int_size, header.endianness);
 
-    if min_element_tag == 0 {
+    let sparse_tags = if min_element_tag == 0 {
         panic!("Element tag 0 is reserved for internal use");
     } else if max_element_tag - min_element_tag > num_elements - 1 {
-        unimplemented!("Sparse element tags are not yet supported");
-    }
+        true
+    } else {
+        false
+    };
 
     let (input, element_entity_blocks) = count(
-        |i| parse_element_entity(size_t_parser, int_parser, i),
+        |i| parse_element_entity(size_t_parser, int_parser, sparse_tags, i),
         num_entity_blocks,
     )(input)?;
 
@@ -398,7 +426,9 @@ fn parse_element_section<'a>(
     ))
 }
 
-fn parse_file(input: &[u8]) -> IResult<&[u8], Mesh<usize, i32, f64>> {
+fn parse_file<'a>(
+    input: &'a [u8],
+) -> IResult<&'a [u8], Mesh<usize, i32, f64>, VerboseError<&'a [u8]>> {
     let (input, header) = parsers::parse_delimited_block(
         terminated(tag("$MeshFormat"), br),
         terminated(tag("$EndMeshFormat"), br),

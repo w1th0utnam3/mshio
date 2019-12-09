@@ -1,24 +1,80 @@
-use nom::bytes::complete::{take, take_while};
+use nom::branch::alt;
+use nom::bytes::complete::{tag, take, take_while};
 use nom::error::ParseError;
 use nom::sequence::delimited;
 use nom::{AsChar, IResult};
 
-use nom::{alt, named, tag};
+/// Consumes a single linebreak
+///
+/// ```
+/// use nom::Err;
+/// use nom::error::{ErrorKind, ParseError};
+///
+/// let parser = mshio::parsers::br::<_,(_,_)>;
+///
+/// assert_eq!(parser("\n123"), Ok(("123", "\n")));
+/// assert_eq!(parser("\r\n123456"), Ok(("123456", "\r\n")));
+/// assert_eq!(parser("123"), Err(Err::Error(ParseError::from_error_kind("123", ErrorKind::Tag))));
+/// ```
+pub fn br<I, E: ParseError<I>>(i: I) -> IResult<I, I, E>
+where
+    I: Clone + nom::InputTake + nom::Compare<&'static str>,
+{
+    alt((tag("\n"), tag("\r\n")))(i)
+}
 
-named!(pub br, alt!(tag!("\n") | tag!("\r\n")));
-named!(pub sp, alt!(tag!(" ") | tag!("\t") | tag!("\n") | tag!("\r\n")));
+/// Consumes a single whitespaces character
+///
+/// ```
+/// use nom::Err;
+/// use nom::error::{ErrorKind, ParseError};
+///
+/// let parser = mshio::parsers::sp::<_,(_,_)>;
+///
+/// assert_eq!(parser(" 123"), Ok(("123", " ")));
+/// assert_eq!(parser("\t123"), Ok(("123", "\t")));
+/// assert_eq!(parser("\n123"), Ok(("123", "\n")));
+/// assert_eq!(parser("\r\n123"), Ok(("123", "\r\n")));
+/// assert_eq!(parser("123"), Err(Err::Error(ParseError::from_error_kind("123", ErrorKind::Tag))));
+/// ```
+pub fn sp<I, E: ParseError<I>>(i: I) -> IResult<I, I, E>
+where
+    I: Clone + nom::InputTake + nom::Compare<&'static str>,
+{
+    alt((tag(" "), tag("\t"), tag("\n"), tag("\r\n")))(i)
+}
 
-// Consumes spaces
+/// Consumes all preceding whitespaces
+///
+/// ```
+/// let parser = mshio::parsers::take_sp::<_,(_,_)>;
+///
+/// assert_eq!(parser(" \t \n\r\n123"), Ok(("123", " \t \n\r\n")));
+/// assert_eq!(parser("123"), Ok(("123", "")));
+/// ```
 pub fn take_sp<I, E: ParseError<I>>(i: I) -> IResult<I, I, E>
 where
     I: nom::InputTakeAtPosition,
     <I as nom::InputTakeAtPosition>::Item: AsChar,
 {
-    let whitespaces = " \t\r\n";
-    take_while(move |c: <I as nom::InputTakeAtPosition>::Item| whitespaces.contains(c.as_char()))(i)
+    take_while(|c: <I as nom::InputTakeAtPosition>::Item| " \t\r\n".contains(c.as_char()))(i)
 }
 
-// Applies a parser after consuming all enclosing spaces
+/// Removes preceding whitespaces, applies parser and consumes trailing whitespaces
+///
+/// ```
+/// use std::str::FromStr;
+/// use nom::character::complete::digit0;
+/// use nom::combinator::map;
+///
+/// let parser = mshio::parsers::ws::<_,_,(_,_),_>(map(digit0, FromStr::from_str));
+///
+/// assert_eq!(parser(" \t \n\r\n123  \n"), Ok(("", Ok(123))));
+/// assert_eq!(parser(" \t \n\r\n123  \n456"), Ok(("456", Ok(123))));
+/// assert_eq!(parser(" \n456"), Ok(("", Ok(456))));
+/// assert_eq!(parser(" \nabc  "), Ok(("abc  ", i32::from_str(""))));
+/// assert_eq!(parser("abc"), Ok(("abc", i32::from_str(""))));
+/// ```
 pub fn ws<I, O, E: ParseError<I>, F>(parser: F) -> impl Fn(I) -> IResult<I, O, E>
 where
     F: Fn(I) -> IResult<I, O, E>,
