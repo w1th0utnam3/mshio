@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+use std::hash::Hash;
 use std::str;
 
 use nom::bytes::complete::tag;
@@ -10,9 +12,13 @@ use nom::number::Endianness;
 use nom::sequence::{delimited, preceded, terminated};
 use nom::IResult;
 
+use num::{Float, Integer, Signed, Unsigned};
+
 pub mod parsers;
 
 use parsers::{br, sp};
+
+// TODO: Replace panics and unimplemented with Err
 
 /// Debug helper to view u8 slice as utf8 str and print it
 #[allow(dead_code)]
@@ -84,7 +90,7 @@ struct Point {}
 struct Curve {}
 
 #[derive(Debug)]
-struct Surface<IntT: num::Signed, FloatT: num::Float> {
+struct Surface<IntT: Signed + Integer, FloatT: Float> {
     tag: IntT,
     min_x: FloatT,
     min_y: FloatT,
@@ -98,9 +104,9 @@ struct Surface<IntT: num::Signed, FloatT: num::Float> {
 
 fn parse_surface<
     'a,
-    SizeT: num::Unsigned + num::ToPrimitive,
-    IntT: Clone + num::Signed,
-    FloatT: num::Float,
+    SizeT: Unsigned + Integer + num::ToPrimitive,
+    IntT: Clone + Signed + Integer,
+    FloatT: Float,
     SizeTParser,
     IntParser,
     FloatParser,
@@ -126,14 +132,18 @@ where
     let (input, max_z) = double_parser(input)?;
 
     let (input, num_physical_tags) = size_t_parser(input)?;
-    let mut physical_tags = vec![IntT::zero(); num_physical_tags.to_usize().unwrap()];
-    for j in 0..num_physical_tags.to_usize().unwrap() {
+    let num_physical_tags = num_physical_tags.to_usize().unwrap();
+
+    let mut physical_tags = vec![IntT::zero(); num_physical_tags];
+    for j in 0..num_physical_tags {
         physical_tags[j] = int_parser(input)?.1;
     }
 
     let (input, num_bounding_curves) = size_t_parser(input)?;
-    let mut curve_tags = vec![IntT::zero(); num_bounding_curves.to_usize().unwrap()];
-    for j in 0..num_bounding_curves.to_usize().unwrap() {
+    let num_bounding_curves = num_bounding_curves.to_usize().unwrap();
+
+    let mut curve_tags = vec![IntT::zero(); num_bounding_curves];
+    for j in 0..num_bounding_curves {
         curve_tags[j] = int_parser(input)?.1;
     }
 
@@ -157,16 +167,17 @@ where
 struct Volume {}
 
 #[derive(Debug)]
-struct Entities<IntT: num::Signed, FloatT: num::Float> {
+struct Entities<IntT: Signed + Integer, FloatT: Float> {
     points: Vec<Point>,
     curves: Vec<Curve>,
     surfaces: Vec<Surface<IntT, FloatT>>,
     volumes: Vec<Volume>,
 }
 
-fn parse_entity_content<'a>(header: &Header, input: &'a [u8]) -> IResult<&'a [u8], Entities<i32, f64>> {
-    print_u8("entities:", input);
-
+fn parse_entity_content<'a>(
+    header: &Header,
+    input: &'a [u8],
+) -> IResult<&'a [u8], Entities<i32, f64>> {
     let size_t_parser =
         get_unsigned_integer_parser::<usize, _>(header.size_t_size, header.endianness);
     let (input, num_points) = size_t_parser(input)?;
@@ -212,6 +223,134 @@ fn parse_entity_content<'a>(header: &Header, input: &'a [u8]) -> IResult<&'a [u8
     ))
 }
 
+#[derive(Debug)]
+struct Nodes<SizeT: Unsigned + Integer + Hash, IntT: Signed + Integer, FloatT: Float> {
+    min_node_tag: usize,
+    max_node_tag: usize,
+    node_entities: Vec<NodeEntity<SizeT, IntT, FloatT>>,
+}
+
+#[derive(Debug)]
+struct NodeEntity<SizeT: Unsigned + Integer + Hash, IntT: Signed + Integer, FloatT: Float> {
+    entity_dim: IntT,
+    entity_tag: IntT,
+    parametric: bool,
+    node_tags: Option<HashMap<SizeT, usize>>,
+    nodes: Vec<Node<FloatT>>,
+    parametric_nodes: Option<Vec<Node<FloatT>>>,
+}
+
+#[derive(Debug)]
+struct Node<FloatT: Float> {
+    x: FloatT,
+    y: FloatT,
+    z: FloatT,
+}
+
+fn parse_node_entity<
+    'a,
+    SizeT: Unsigned + Integer + num::ToPrimitive + Hash,
+    IntT: Signed + Integer + num::ToPrimitive,
+    FloatT: Float,
+    SizeTParser,
+    IntParser,
+    FloatParser,
+    E: ParseError<&'a [u8]>,
+>(
+    size_t_parser: SizeTParser,
+    int_parser: IntParser,
+    double_parser: FloatParser,
+    input: &'a [u8],
+) -> IResult<&'a [u8], NodeEntity<SizeT, IntT, FloatT>, E>
+where
+    SizeTParser: Fn(&'a [u8]) -> IResult<&'a [u8], SizeT, E>,
+    IntParser: Fn(&'a [u8]) -> IResult<&'a [u8], IntT, E>,
+    FloatParser: Fn(&'a [u8]) -> IResult<&'a [u8], FloatT, E>,
+{
+    let (input, entity_dim) = int_parser(input)?;
+    let (input, entity_tag) = int_parser(input)?;
+    let (input, parametric) = int_parser(input)?;
+    let (input, num_nodes_in_block) = size_t_parser(input)?;
+    let num_nodes_in_block = num_nodes_in_block.to_usize().unwrap();
+
+    let parametric = if parametric == IntT::zero() {
+        false
+    } else if parametric == IntT::one() {
+        true
+    } else {
+        panic!("Unsupported value for node block attribute 'parametric' (only 0 and 1 supported)")
+    };
+
+    if parametric {
+        unimplemented!("Parametric nodes are not supported yet");
+    }
+
+    let parse_node_tag = |input| {
+        let (input, node_tag) = size_t_parser(input)?;
+        Ok((input, node_tag))
+    };
+
+    let (input, _node_tags) = count(parse_node_tag, num_nodes_in_block)(input)?;
+
+    let parse_node = |input| {
+        let (input, x) = double_parser(input)?;
+        let (input, y) = double_parser(input)?;
+        let (input, z) = double_parser(input)?;
+
+        Ok((input, Node { x, y, z }))
+    };
+
+    let (input, nodes) = count(parse_node, num_nodes_in_block as usize)(input)?;
+
+    Ok((
+        input,
+        NodeEntity {
+            entity_dim,
+            entity_tag,
+            parametric,
+            node_tags: None,
+            nodes,
+            parametric_nodes: None,
+        },
+    ))
+}
+
+fn parse_node_content<'a>(
+    header: &Header,
+    input: &'a [u8],
+) -> IResult<&'a [u8], Nodes<usize, i32, f64>> {
+    let size_t_parser =
+        get_unsigned_integer_parser::<usize, _>(header.size_t_size, header.endianness);
+
+    let (input, num_entity_blocks) = size_t_parser(input)?;
+    let (input, num_nodes) = size_t_parser(input)?;
+    let (input, min_node_tag) = size_t_parser(input)?;
+    let (input, max_node_tag) = size_t_parser(input)?;
+
+    let int_parser = get_integer_parser::<i32, _>(header.int_size, header.endianness);
+    let double_parser = get_float_parser::<f64, _>(8, header.endianness);
+
+    if min_node_tag == 0 {
+        panic!("Node tag 0 is reserved for internal use");
+    } else if max_node_tag - min_node_tag > num_nodes - 1 {
+        unimplemented!("Sparse node tags are not supported");
+    }
+
+    let (input, node_entity_blocks) = count(
+        |i| parse_node_entity(size_t_parser, int_parser, double_parser, i),
+        num_entity_blocks,
+    )(input)?;
+
+    Ok((
+        input,
+        Nodes {
+            min_node_tag: min_node_tag,
+            max_node_tag: max_node_tag,
+            node_entities: node_entity_blocks,
+        },
+    ))
+}
+
 fn parse_file(input: &[u8]) -> IResult<&[u8], Header> {
     let (input, header) = parsers::parse_delimited_block(
         terminated(tag("$MeshFormat"), br),
@@ -227,6 +366,14 @@ fn parse_file(input: &[u8]) -> IResult<&[u8], Header> {
         terminated(tag("$EndEntities"), br),
         |i| parse_entity_content(&header, i),
     )(input)?;
+
+    let (input, nodes) = parsers::parse_delimited_block(
+        terminated(tag("$Nodes"), br),
+        terminated(tag("$EndNodes"), br),
+        |i| parse_node_content(&header, i),
+    )(input)?;
+
+    println!("node entity blocks:\n{:?}", nodes);
 
     Ok((input, header))
 }
@@ -244,7 +391,11 @@ pub fn parse(msh: &[u8]) {
     }
 }
 
-fn get_unsigned_integer_parser<'a, T: num::Unsigned + num::Integer + num::NumCast, E: ParseError<&'a [u8]>>(
+fn get_unsigned_integer_parser<
+    'a,
+    T: Unsigned + Integer + num::NumCast,
+    E: ParseError<&'a [u8]>,
+>(
     source_size: usize,
     endianness: Option<Endianness>,
 ) -> impl Copy + Fn(&'a [u8]) -> IResult<&'a [u8], T, E> {
@@ -294,7 +445,7 @@ fn get_unsigned_integer_parser<'a, T: num::Unsigned + num::Integer + num::NumCas
     }
 }
 
-fn get_integer_parser<'a, T: num::Signed + num::Integer + num::NumCast, E: ParseError<&'a [u8]>>(
+fn get_integer_parser<'a, T: Signed + Integer + num::NumCast, E: ParseError<&'a [u8]>>(
     source_size: usize,
     endianness: Option<Endianness>,
 ) -> impl Copy + Fn(&'a [u8]) -> IResult<&'a [u8], T, E> {
@@ -348,7 +499,7 @@ fn get_integer_parser<'a, T: num::Signed + num::Integer + num::NumCast, E: Parse
     }
 }
 
-fn get_float_parser<'a, T: num::Float + num::NumCast, E: ParseError<&'a [u8]>>(
+fn get_float_parser<'a, T: Float + num::NumCast, E: ParseError<&'a [u8]>>(
     source_size: usize,
     endianness: Option<Endianness>,
 ) -> impl Copy + Fn(&'a [u8]) -> IResult<&'a [u8], T, E> {
