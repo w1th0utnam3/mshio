@@ -14,8 +14,13 @@ use nom::IResult;
 
 use num::{Float, Integer, Signed, Unsigned};
 
+pub mod mesh_data;
+pub mod num_parsers;
 pub mod parsers;
 
+use mesh_data::{
+    Element, ElementEntity, Elements, Entities, Header, Mesh, Node, NodeEntity, Nodes, Surface,
+};
 use parsers::{br, sp};
 
 // TODO: Replace panics and unimplemented with Err
@@ -26,16 +31,7 @@ fn print_u8(text: &str, input: &[u8]) {
     println!("{}: '{}'", text, String::from_utf8_lossy(input));
 }
 
-#[derive(Debug)]
-struct Header {
-    version: f64,
-    file_type: i32,
-    size_t_size: usize,
-    int_size: usize,
-    endianness: Option<Endianness>,
-}
-
-fn parse_header_content(input: &[u8]) -> IResult<&[u8], Header> {
+fn parse_header_section(input: &[u8]) -> IResult<&[u8], Header> {
     let from_u8 = |items| str::FromStr::from_str(str::from_utf8(items).unwrap());
 
     let (input, version) = numbers::double(input)?;
@@ -81,25 +77,6 @@ fn parse_header_content(input: &[u8]) -> IResult<&[u8], Header> {
             endianness,
         },
     ))
-}
-
-#[derive(Debug)]
-struct Point {}
-
-#[derive(Debug)]
-struct Curve {}
-
-#[derive(Debug)]
-struct Surface<IntT: Signed + Integer, FloatT: Float> {
-    tag: IntT,
-    min_x: FloatT,
-    min_y: FloatT,
-    min_z: FloatT,
-    max_x: FloatT,
-    max_y: FloatT,
-    max_z: FloatT,
-    physical_tags: Vec<IntT>,
-    curve_tags: Vec<IntT>,
 }
 
 fn parse_surface<
@@ -163,30 +140,18 @@ where
     ))
 }
 
-#[derive(Debug)]
-struct Volume {}
-
-#[derive(Debug)]
-struct Entities<IntT: Signed + Integer, FloatT: Float> {
-    points: Vec<Point>,
-    curves: Vec<Curve>,
-    surfaces: Vec<Surface<IntT, FloatT>>,
-    volumes: Vec<Volume>,
-}
-
-fn parse_entity_content<'a>(
+fn parse_entity_section<'a>(
     header: &Header,
     input: &'a [u8],
 ) -> IResult<&'a [u8], Entities<i32, f64>> {
-    let size_t_parser =
-        get_unsigned_integer_parser::<usize, _>(header.size_t_size, header.endianness);
+    let size_t_parser = num_parsers::uint_parser::<usize, _>(header.size_t_size, header.endianness);
     let (input, num_points) = size_t_parser(input)?;
     let (input, num_curves) = size_t_parser(input)?;
     let (input, num_surfaces) = size_t_parser(input)?;
     let (input, num_volumes) = size_t_parser(input)?;
 
-    let int_parser = get_integer_parser::<i32, _>(header.int_size, header.endianness);
-    let double_parser = get_float_parser::<f64, _>(8, header.endianness);
+    let int_parser = num_parsers::int_parser::<i32, _>(header.int_size, header.endianness);
+    let double_parser = num_parsers::float_parser::<f64, _>(8, header.endianness);
 
     for _ in 0..num_points {
         unimplemented!("Point entity reading not implemented")
@@ -221,30 +186,6 @@ fn parse_entity_content<'a>(
             volumes: Vec::new(),
         },
     ))
-}
-
-#[derive(Debug)]
-struct Nodes<SizeT: Unsigned + Integer + Hash, IntT: Signed + Integer, FloatT: Float> {
-    min_node_tag: usize,
-    max_node_tag: usize,
-    node_entities: Vec<NodeEntity<SizeT, IntT, FloatT>>,
-}
-
-#[derive(Debug)]
-struct NodeEntity<SizeT: Unsigned + Integer + Hash, IntT: Signed + Integer, FloatT: Float> {
-    entity_dim: IntT,
-    entity_tag: IntT,
-    parametric: bool,
-    node_tags: Option<HashMap<SizeT, usize>>,
-    nodes: Vec<Node<FloatT>>,
-    parametric_nodes: Option<Vec<Node<FloatT>>>,
-}
-
-#[derive(Debug)]
-struct Node<FloatT: Float> {
-    x: FloatT,
-    y: FloatT,
-    z: FloatT,
 }
 
 fn parse_node_entity<
@@ -315,20 +256,19 @@ where
     ))
 }
 
-fn parse_node_content<'a>(
+fn parse_node_section<'a>(
     header: &Header,
     input: &'a [u8],
 ) -> IResult<&'a [u8], Nodes<usize, i32, f64>> {
-    let size_t_parser =
-        get_unsigned_integer_parser::<usize, _>(header.size_t_size, header.endianness);
+    let size_t_parser = num_parsers::uint_parser::<usize, _>(header.size_t_size, header.endianness);
 
     let (input, num_entity_blocks) = size_t_parser(input)?;
     let (input, num_nodes) = size_t_parser(input)?;
     let (input, min_node_tag) = size_t_parser(input)?;
     let (input, max_node_tag) = size_t_parser(input)?;
 
-    let int_parser = get_integer_parser::<i32, _>(header.int_size, header.endianness);
-    let double_parser = get_float_parser::<f64, _>(8, header.endianness);
+    let int_parser = num_parsers::int_parser::<i32, _>(header.int_size, header.endianness);
+    let double_parser = num_parsers::float_parser::<f64, _>(8, header.endianness);
 
     if min_node_tag == 0 {
         panic!("Node tag 0 is reserved for internal use");
@@ -351,198 +291,161 @@ fn parse_node_content<'a>(
     ))
 }
 
-fn parse_file(input: &[u8]) -> IResult<&[u8], Header> {
+fn nodes_per_element(element_type: i32) -> usize {
+    match element_type {
+        1 => 2,
+        2 => 3,
+        3 => 4,
+        4 => 4,
+        5 => 8,
+        6 => 6,
+        7 => 5,
+        _ => unimplemented!("Unsupported element type '{}'", element_type),
+    }
+}
+
+fn parse_element_entity<
+    'a,
+    SizeT: Unsigned + Integer + num::ToPrimitive + Hash,
+    IntT: Signed + Integer + num::ToPrimitive,
+    SizeTParser,
+    IntParser,
+    E: ParseError<&'a [u8]>,
+>(
+    size_t_parser: SizeTParser,
+    int_parser: IntParser,
+    input: &'a [u8],
+) -> IResult<&'a [u8], ElementEntity<SizeT, IntT>, E>
+where
+    SizeTParser: Fn(&'a [u8]) -> IResult<&'a [u8], SizeT, E>,
+    IntParser: Fn(&'a [u8]) -> IResult<&'a [u8], IntT, E>,
+{
+    let (input, entity_dim) = int_parser(input)?;
+    let (input, entity_tag) = int_parser(input)?;
+    let (input, element_type) = int_parser(input)?;
+    let (input, num_elements_in_block) = size_t_parser(input)?;
+    let num_elements_in_block = num_elements_in_block.to_usize().unwrap();
+
+    let num_nodes = nodes_per_element(element_type.to_i32().unwrap());
+
+    let parse_element = |input| {
+        let (input, element_tag) = size_t_parser(input)?;
+
+        let mut input = input;
+        let mut node_tags = Vec::with_capacity(num_nodes);
+        for _ in 0..num_nodes {
+            let (input_, node_tag) = size_t_parser(input)?;
+            node_tags.push(node_tag);
+            input = input_;
+        }
+
+        Ok((
+            input,
+            Element {
+                element_tag,
+                nodes: node_tags,
+            },
+        ))
+    };
+
+    let (input, elements) = count(parse_element, num_elements_in_block)(input)?;
+
+    // TODO: Extract map of element tags
+
+    Ok((
+        input,
+        ElementEntity {
+            entity_dim,
+            entity_tag,
+            element_type,
+            element_tags: None,
+            elements,
+        },
+    ))
+}
+
+fn parse_element_section<'a>(
+    header: &Header,
+    input: &'a [u8],
+) -> IResult<&'a [u8], Elements<usize, i32>> {
+    let size_t_parser = num_parsers::uint_parser::<usize, _>(header.size_t_size, header.endianness);
+
+    let (input, num_entity_blocks) = size_t_parser(input)?;
+    let (input, num_elements) = size_t_parser(input)?;
+    let (input, min_element_tag) = size_t_parser(input)?;
+    let (input, max_element_tag) = size_t_parser(input)?;
+
+    let int_parser = num_parsers::int_parser::<i32, _>(header.int_size, header.endianness);
+
+    if min_element_tag == 0 {
+        panic!("Element tag 0 is reserved for internal use");
+    } else if max_element_tag - min_element_tag > num_elements - 1 {
+        unimplemented!("Sparse element tags are not yet supported");
+    }
+
+    let (input, element_entity_blocks) = count(
+        |i| parse_element_entity(size_t_parser, int_parser, i),
+        num_entity_blocks,
+    )(input)?;
+
+    Ok((
+        input,
+        Elements {
+            min_node_tag: min_element_tag,
+            max_node_tag: max_element_tag,
+            element_entities: element_entity_blocks,
+        },
+    ))
+}
+
+fn parse_file(input: &[u8]) -> IResult<&[u8], Mesh<usize, i32, f64>> {
     let (input, header) = parsers::parse_delimited_block(
         terminated(tag("$MeshFormat"), br),
         terminated(tag("$EndMeshFormat"), br),
-        parse_header_content,
+        parse_header_section,
     )(input)?;
 
     // TODO: Support arbitrary order and repetition of blocks, support unrecognized headers
     // To allow this, headers have to be recognized
 
-    let (input, _entities) = parsers::parse_delimited_block(
+    let (input, entities) = parsers::parse_delimited_block(
         terminated(tag("$Entities"), br),
         terminated(tag("$EndEntities"), br),
-        |i| parse_entity_content(&header, i),
+        |i| parse_entity_section(&header, i),
     )(input)?;
 
     let (input, nodes) = parsers::parse_delimited_block(
         terminated(tag("$Nodes"), br),
         terminated(tag("$EndNodes"), br),
-        |i| parse_node_content(&header, i),
+        |i| parse_node_section(&header, i),
     )(input)?;
 
-    println!("node entity blocks:\n{:?}", nodes);
+    let (input, elements) = parsers::parse_delimited_block(
+        terminated(tag("$Elements"), br),
+        terminated(tag("$EndElements"), br),
+        |i| parse_element_section(&header, i),
+    )(input)?;
 
-    Ok((input, header))
+    Ok((
+        input,
+        Mesh {
+            header,
+            entities,
+            nodes,
+            elements,
+        },
+    ))
 }
 
 pub fn parse(msh: &[u8]) {
     match parse_file(msh) {
-        Ok((_, header)) => {
+        Ok((_, mesh)) => {
             println!("Successfully parsed:");
-            println!("{:?}", header);
+            println!("{:?}", mesh);
         }
         Err(err) => {
             println!("{:?}", err);
             panic!("")
-        }
-    }
-}
-
-fn get_unsigned_integer_parser<
-    'a,
-    T: Unsigned + Integer + num::NumCast,
-    E: ParseError<&'a [u8]>,
->(
-    source_size: usize,
-    endianness: Option<Endianness>,
-) -> impl Copy + Fn(&'a [u8]) -> IResult<&'a [u8], T, E> {
-    if std::mem::size_of::<T>() < source_size {
-        panic!("Input unsigned integer size of {} bytes is too large for target unsigned integer size of {} bytes", source_size, std::mem::size_of::<T>());
-    }
-
-    macro_rules! generate_parser {
-        ($parser:expr) => {
-            (|i| match $parser(i) {
-                Ok((i, v)) => Ok((i, T::from(v).unwrap())),
-                Err(e) => Err(e),
-            }) as fn(&'a [u8]) -> IResult<&'a [u8], T, E>
-        };
-    }
-
-    match endianness {
-        Some(Endianness::Little) => match source_size {
-            1 => return generate_parser!(numbers::le_u8),
-            2 => return generate_parser!(numbers::le_u16),
-            4 => return generate_parser!(numbers::le_u32),
-            8 => return generate_parser!(numbers::le_u64),
-            16 => return generate_parser!(numbers::le_u128),
-            _ => {
-                unimplemented!(
-                    "No parser for input unsigned integer size of {} bytes available",
-                    source_size
-                );
-            }
-        },
-        Some(Endianness::Big) => match source_size {
-            1 => return generate_parser!(numbers::be_u8),
-            2 => return generate_parser!(numbers::be_u16),
-            4 => return generate_parser!(numbers::be_u32),
-            8 => return generate_parser!(numbers::be_u64),
-            16 => return generate_parser!(numbers::be_u128),
-            _ => {
-                unimplemented!(
-                    "No parser for input unsigned integer size of {} bytes available",
-                    source_size
-                );
-            }
-        },
-        None => {
-            unimplemented!("ASCII encoding not implemented");
-        }
-    }
-}
-
-fn get_integer_parser<'a, T: Signed + Integer + num::NumCast, E: ParseError<&'a [u8]>>(
-    source_size: usize,
-    endianness: Option<Endianness>,
-) -> impl Copy + Fn(&'a [u8]) -> IResult<&'a [u8], T, E> {
-    if std::mem::size_of::<T>() < source_size {
-        panic!(
-            "Input integer input of {} bytes is too large for target integer size of {} bytes",
-            source_size,
-            std::mem::size_of::<T>()
-        );
-    }
-
-    macro_rules! generate_parser {
-        ($parser:expr) => {
-            (|i| match $parser(i) {
-                Ok((i, v)) => Ok((i, T::from(v).unwrap())),
-                Err(e) => Err(e),
-            }) as fn(&'a [u8]) -> IResult<&'a [u8], T, E>
-        };
-    }
-
-    match endianness {
-        Some(Endianness::Little) => match source_size {
-            1 => return generate_parser!(numbers::le_i8),
-            2 => return generate_parser!(numbers::le_i16),
-            4 => return generate_parser!(numbers::le_i32),
-            8 => return generate_parser!(numbers::le_i64),
-            16 => return generate_parser!(numbers::le_i128),
-            _ => {
-                unimplemented!(
-                    "No parser for input integer size of {} bytes available",
-                    source_size
-                );
-            }
-        },
-        Some(Endianness::Big) => match source_size {
-            1 => return generate_parser!(numbers::be_i8),
-            2 => return generate_parser!(numbers::be_i16),
-            4 => return generate_parser!(numbers::be_i32),
-            8 => return generate_parser!(numbers::be_i64),
-            16 => return generate_parser!(numbers::be_i128),
-            _ => {
-                unimplemented!(
-                    "No parser for source integer size of {} bytes available",
-                    source_size
-                );
-            }
-        },
-        None => {
-            unimplemented!("ASCII encoding not implemented");
-        }
-    }
-}
-
-fn get_float_parser<'a, T: Float + num::NumCast, E: ParseError<&'a [u8]>>(
-    source_size: usize,
-    endianness: Option<Endianness>,
-) -> impl Copy + Fn(&'a [u8]) -> IResult<&'a [u8], T, E> {
-    if std::mem::size_of::<T>() < source_size {
-        panic!(
-            "Input float size of {} bytes is too large for target float size of {} bytes",
-            source_size,
-            std::mem::size_of::<T>()
-        );
-    }
-
-    macro_rules! generate_parser {
-        ($parser:expr) => {
-            (|i| match $parser(i) {
-                Ok((i, v)) => Ok((i, T::from(v).unwrap())),
-                Err(e) => Err(e),
-            }) as fn(&'a [u8]) -> IResult<&'a [u8], T, E>
-        };
-    }
-
-    match endianness {
-        Some(Endianness::Little) => match source_size {
-            4 => return generate_parser!(numbers::le_f32),
-            8 => return generate_parser!(numbers::le_f64),
-            _ => {
-                unimplemented!(
-                    "No parser for input float size of {} bytes available",
-                    source_size
-                );
-            }
-        },
-        Some(Endianness::Big) => match source_size {
-            4 => return generate_parser!(numbers::be_f32),
-            8 => return generate_parser!(numbers::be_f64),
-            _ => {
-                unimplemented!(
-                    "No parser for input float size of {} bytes available",
-                    source_size
-                );
-            }
-        },
-        None => {
-            unimplemented!("ASCII encoding not implemented");
         }
     }
 }
