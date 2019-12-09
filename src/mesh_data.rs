@@ -4,7 +4,7 @@ use std::hash::Hash;
 use nom::number::Endianness;
 use num::{Float, Integer, Signed, Unsigned};
 
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub struct Mesh<SizeT: Unsigned + Integer + Hash, IntT: Signed + Integer, FloatT: Float> {
     pub header: Header,
     pub entities: Entities<IntT, FloatT>,
@@ -12,7 +12,7 @@ pub struct Mesh<SizeT: Unsigned + Integer + Hash, IntT: Signed + Integer, FloatT
     pub elements: Elements<SizeT, IntT>,
 }
 
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub struct Header {
     pub version: f64,
     pub file_type: i32,
@@ -21,7 +21,7 @@ pub struct Header {
     pub endianness: Option<Endianness>,
 }
 
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub struct Entities<IntT: Signed + Integer, FloatT: Float> {
     pub points: Vec<Point>,
     pub curves: Vec<Curve>,
@@ -29,13 +29,13 @@ pub struct Entities<IntT: Signed + Integer, FloatT: Float> {
     pub volumes: Vec<Volume>,
 }
 
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub struct Point {}
 
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub struct Curve {}
 
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub struct Surface<IntT: Signed + Integer, FloatT: Float> {
     pub tag: IntT,
     pub min_x: FloatT,
@@ -48,17 +48,17 @@ pub struct Surface<IntT: Signed + Integer, FloatT: Float> {
     pub curve_tags: Vec<IntT>,
 }
 
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub struct Volume {}
 
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub struct Nodes<SizeT: Unsigned + Integer + Hash, IntT: Signed + Integer, FloatT: Float> {
     pub min_node_tag: SizeT,
     pub max_node_tag: SizeT,
     pub node_entities: Vec<NodeEntity<SizeT, IntT, FloatT>>,
 }
 
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub struct NodeEntity<SizeT: Unsigned + Integer + Hash, IntT: Signed + Integer, FloatT: Float> {
     pub entity_dim: IntT,
     pub entity_tag: IntT,
@@ -68,21 +68,21 @@ pub struct NodeEntity<SizeT: Unsigned + Integer + Hash, IntT: Signed + Integer, 
     pub parametric_nodes: Option<Vec<Node<FloatT>>>,
 }
 
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub struct Node<FloatT: Float> {
     pub x: FloatT,
     pub y: FloatT,
     pub z: FloatT,
 }
 
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub struct Elements<SizeT: Unsigned + Integer + Hash, IntT: Signed + Integer> {
     pub min_node_tag: SizeT,
     pub max_node_tag: SizeT,
     pub element_entities: Vec<ElementEntity<SizeT, IntT>>,
 }
 
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub struct ElementEntity<SizeT: Unsigned + Integer + Hash, IntT: Signed + Integer> {
     pub entity_dim: IntT,
     pub entity_tag: IntT,
@@ -91,7 +91,7 @@ pub struct ElementEntity<SizeT: Unsigned + Integer + Hash, IntT: Signed + Intege
     pub elements: Vec<Element<SizeT>>,
 }
 
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub struct Element<SizeT: Unsigned + Integer> {
     pub element_tag: SizeT,
     pub nodes: Vec<SizeT>,

@@ -1,11 +1,18 @@
-use nom::error::ParseError;
+use std::str;
+
+use nom::character::complete::digit1;
+use nom::combinator::map;
+use nom::error::{ParseError, ErrorKind};
+use nom::Err;
 use nom::number::complete as numbers;
 use nom::number::Endianness;
 use nom::IResult;
 
-use num::{Bounded, Float, Integer, NumCast, Signed, Unsigned};
+use num::{Float, Integer, NumCast, Signed, Unsigned};
 
-pub fn uint_parser<'a, T: Unsigned + Integer + NumCast, E: ParseError<&'a [u8]>>(
+use crate::general_parsers::ws;
+
+pub fn uint_parser<'a, T: Unsigned + Integer + NumCast + str::FromStr, E: ParseError<&'a [u8]>>(
     source_size: usize,
     endianness: Option<Endianness>,
 ) -> impl Copy + Fn(&'a [u8]) -> IResult<&'a [u8], T, E> {
@@ -50,12 +57,21 @@ pub fn uint_parser<'a, T: Unsigned + Integer + NumCast, E: ParseError<&'a [u8]>>
             }
         },
         None => {
-            unimplemented!("ASCII encoding not implemented");
+            (|i| match ws(map(digit1, |items| {
+                str::FromStr::from_str(str::from_utf8(items).unwrap())
+            }))(i)
+            {
+                Ok((i, v)) => { match v {
+                    Ok(v) => Ok((i, v)),
+                    Err(_) => Err(Err::Error(ParseError::from_error_kind(i, ErrorKind::ParseTo)))
+                }},
+                Err(e) => Err(e),
+            }) as fn(&'a [u8]) -> IResult<&'a [u8], T, E>
         }
     }
 }
 
-pub fn int_parser<'a, T: Signed + Integer + NumCast, E: ParseError<&'a [u8]>>(
+pub fn int_parser<'a, T: Signed + Integer + NumCast + str::FromStr, E: ParseError<&'a [u8]>>(
     source_size: usize,
     endianness: Option<Endianness>,
 ) -> impl Copy + Fn(&'a [u8]) -> IResult<&'a [u8], T, E> {
@@ -104,7 +120,16 @@ pub fn int_parser<'a, T: Signed + Integer + NumCast, E: ParseError<&'a [u8]>>(
             }
         },
         None => {
-            unimplemented!("ASCII encoding not implemented");
+            (|i| match ws(map(digit1, |items| {
+                str::FromStr::from_str(str::from_utf8(items).unwrap())
+            }))(i)
+            {
+                Ok((i, v)) => { match v {
+                    Ok(v) => Ok((i, v)),
+                    Err(_) => Err(Err::Error(ParseError::from_error_kind(i, ErrorKind::ParseTo)))
+                }},
+                Err(e) => Err(e),
+            }) as fn(&'a [u8]) -> IResult<&'a [u8], T, E>
         }
     }
 }
@@ -152,7 +177,10 @@ pub fn float_parser<'a, T: Float + NumCast, E: ParseError<&'a [u8]>>(
             }
         },
         None => {
-            unimplemented!("ASCII encoding not implemented");
+            (|i| match ws(numbers::double)(i) {
+                Ok((i, v)) => Ok((i, T::from(v).unwrap())),
+                Err(e) => Err(e),
+            }) as fn(&'a [u8]) -> IResult<&'a [u8], T, E>
         }
     }
 }

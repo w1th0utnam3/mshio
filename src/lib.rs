@@ -14,14 +14,15 @@ use nom::IResult;
 
 use num::{Float, Integer, Signed, Unsigned};
 
+pub mod general_parsers;
 pub mod mesh_data;
-pub mod num_parsers;
-pub mod parsers;
+mod num_parsers;
 
+pub use general_parsers as parsers;
+use general_parsers::{br, sp};
 use mesh_data::{
     Element, ElementEntity, Elements, Entities, Header, Mesh, Node, NodeEntity, Nodes, Surface,
 };
-use parsers::{br, sp};
 
 // TODO: Replace panics and unimplemented! calls with Err
 
@@ -426,7 +427,7 @@ fn parse_element_section<'a>(
     ))
 }
 
-fn parse_file<'a>(
+pub fn parse_bytes<'a>(
     input: &'a [u8],
 ) -> IResult<&'a [u8], Mesh<usize, i32, f64>, VerboseError<&'a [u8]>> {
     let (input, header) = parsers::parse_delimited_block(
@@ -467,15 +468,16 @@ fn parse_file<'a>(
     ))
 }
 
-pub fn parse(msh: &[u8]) {
-    match parse_file(msh) {
+pub fn parses(msh: &[u8]) -> bool {
+    match parse_bytes(msh) {
         Ok((_, mesh)) => {
             println!("Successfully parsed:");
             println!("{:?}", mesh);
+            true
         }
         Err(err) => {
             println!("{:?}", err);
-            panic!("")
+            false
         }
     }
 }

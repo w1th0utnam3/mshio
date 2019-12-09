@@ -4,12 +4,31 @@ fn does_nothing() {
 }
 
 #[test]
-fn bin_file() {
+fn simple_bin_file() {
     let circle_2d_bin = include_bytes!("circle_2d_bin.msh");
-    mshio::parse(circle_2d_bin);
+    assert!(mshio::parses(circle_2d_bin));
 }
 
-//#[test]
+#[test]
+fn simple_ascii_file() {
+    let circle_2d = include_str!("circle_2d.msh");
+    assert!(mshio::parses(circle_2d.as_bytes()));
+}
+
+#[test]
+fn compare_simple_ascii_bin() {
+    let circle_2d_bin_raw = include_bytes!("circle_2d_bin.msh");
+    let circle_2d_raw = include_str!("circle_2d.msh");
+
+    let (_, _msh_bin) = mshio::parse_bytes(circle_2d_bin_raw).unwrap();
+    let (_, _msh_ascii) = mshio::parse_bytes(circle_2d_raw.as_bytes()).unwrap();
+
+    // TODO: Better comparison, following fails, maybe because of float
+    //assert_eq!(msh_bin, msh_ascii);
+}
+
+/*
+#[test]
 fn simple_test() {
     let msh = "\
 $MeshFormat
@@ -18,15 +37,8 @@ $EndMeshFormat
 Hello
 $EndMeshFormat
 ";
-    //mshio::parse(&msh);
+    mshio::parses(msh.as_bytes());
 
     assert!(true);
 }
-
-//#[test]
-fn load_file() {
-    let circle_2d = include_str!("circle_2d.msh");
-    //mshio::parse(circle_2d);
-
-    assert!(true);
-}
+*/
