@@ -142,10 +142,10 @@ where
     ))
 }
 
-fn parse_entity_section<'a>(
+fn parse_entity_section<'a, E: ParseError<&'a [u8]>>(
     header: &MshHeader,
     input: &'a [u8],
-) -> IResult<&'a [u8], Entities<i32, f64>, VerboseError<&'a [u8]>> {
+) -> IResult<&'a [u8], Entities<i32, f64>, E> {
     let size_t_parser = num_parsers::uint_parser::<usize, _>(header.size_t_size, header.endianness);
     let (input, num_points) = size_t_parser(input)?;
     let (input, num_curves) = size_t_parser(input)?;
@@ -267,10 +267,10 @@ where
     ))
 }
 
-fn parse_node_section<'a>(
+fn parse_node_section<'a, E: ParseError<&'a [u8]>>(
     header: &MshHeader,
     input: &'a [u8],
-) -> IResult<&'a [u8], Nodes<usize, i32, f64>, VerboseError<&'a [u8]>> {
+) -> IResult<&'a [u8], Nodes<usize, i32, f64>, E> {
     let size_t_parser = num_parsers::uint_parser::<usize, _>(header.size_t_size, header.endianness);
 
     let (input, num_entity_blocks) = size_t_parser(input)?;
@@ -392,10 +392,10 @@ where
     ))
 }
 
-fn parse_element_section<'a>(
+fn parse_element_section<'a, E: ParseError<&'a [u8]>>(
     header: &MshHeader,
     input: &'a [u8],
-) -> IResult<&'a [u8], Elements<usize, i32>, VerboseError<&'a [u8]>> {
+) -> IResult<&'a [u8], Elements<usize, i32>, E> {
     let size_t_parser = num_parsers::uint_parser::<usize, _>(header.size_t_size, header.endianness);
 
     let (input, num_entity_blocks) = size_t_parser(input)?;
@@ -428,9 +428,9 @@ fn parse_element_section<'a>(
     ))
 }
 
-pub fn parse_bytes<'a>(
+pub fn parse_msh_bytes<'a, E: ParseError<&'a [u8]>>(
     input: &'a [u8],
-) -> IResult<&'a [u8], MshFile<usize, i32, f64>, VerboseError<&'a [u8]>> {
+) -> IResult<&'a [u8], MshFile<usize, i32, f64>, E> {
     let (input, header) = parsers::parse_delimited_block(
         terminated(tag("$MeshFormat"), br),
         terminated(tag("$EndMeshFormat"), br),
@@ -471,8 +471,8 @@ pub fn parse_bytes<'a>(
     ))
 }
 
-pub fn parses(msh: &[u8]) -> bool {
-    match parse_bytes(msh) {
+pub fn msh_parses(msh: &[u8]) -> bool {
+    match parse_msh_bytes::<VerboseError<_>>(msh) {
         Ok((_, mesh)) => {
             println!("Successfully parsed:");
             println!("{:?}", mesh);
