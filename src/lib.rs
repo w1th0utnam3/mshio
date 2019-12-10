@@ -5,7 +5,7 @@ use std::str;
 use nom::bytes::complete::tag;
 use nom::character::complete::{alpha0, char, digit1};
 use nom::combinator::{map, peek};
-use nom::error::{context, ErrorKind, ParseError, VerboseError};
+use nom::error::{context, ErrorKind, ParseError};
 use nom::multi::count;
 use nom::number::complete as numbers;
 use nom::number::Endianness;
@@ -22,11 +22,14 @@ mod num_parsers;
 pub use general_parsers as parsers;
 use general_parsers::{br, sp, take_sp};
 use mesh_data::{
-    Element, ElementEntity, Elements, Entities, MshData, MshFile, MshHeader, Node, NodeEntity,
-    Nodes, Surface,
+    Curve, Element, ElementEntity, Elements, Entities, MshData, MshFile, MshHeader, Node,
+    NodeEntity, Nodes, Surface, Volume,
 };
 
 // TODO: Replace panics and unimplemented! calls with Err
+// TODO: Add enum for element types
+// TODO: Move section parsers to separate files
+// TODO: Import point entities
 
 /// Debug helper to view u8 slice as utf8 str and print it
 #[allow(dead_code)]
@@ -78,6 +81,67 @@ fn parse_header_section<'a, E: ParseError<&'a [u8]>>(
             size_t_size: data_size as usize,
             int_size: 4,
             endianness,
+        },
+    ))
+}
+
+fn parse_curve<
+    'a,
+    SizeT: Unsigned + Integer + num::ToPrimitive,
+    IntT: Clone + Signed + Integer,
+    FloatT: Float,
+    SizeTParser,
+    IntParser,
+    FloatParser,
+    E: ParseError<&'a [u8]>,
+>(
+    size_t_parser: SizeTParser,
+    int_parser: IntParser,
+    double_parser: FloatParser,
+    input: &'a [u8],
+) -> IResult<&'a [u8], Curve<IntT, FloatT>, E>
+where
+    SizeTParser: Fn(&'a [u8]) -> IResult<&'a [u8], SizeT, E>,
+    IntParser: Fn(&'a [u8]) -> IResult<&'a [u8], IntT, E>,
+    FloatParser: Fn(&'a [u8]) -> IResult<&'a [u8], FloatT, E>,
+{
+    let (input, curve_tag) = int_parser(input)?;
+
+    let (input, min_x) = double_parser(input)?;
+    let (input, min_y) = double_parser(input)?;
+    let (input, min_z) = double_parser(input)?;
+    let (input, max_x) = double_parser(input)?;
+    let (input, max_y) = double_parser(input)?;
+    let (input, max_z) = double_parser(input)?;
+
+    let (input, num_physical_tags) = size_t_parser(input)?;
+    let num_physical_tags = num_physical_tags.to_usize().unwrap();
+
+    let mut physical_tags = vec![IntT::zero(); num_physical_tags];
+    for j in 0..num_physical_tags {
+        physical_tags[j] = int_parser(input)?.1;
+    }
+
+    let (input, num_bounding_points) = size_t_parser(input)?;
+    let num_bounding_points = num_bounding_points.to_usize().unwrap();
+
+    let mut point_tags = vec![IntT::zero(); num_bounding_points];
+    for j in 0..num_bounding_points {
+        point_tags[j] = int_parser(input)?.1;
+    }
+
+    Ok((
+        input,
+        Curve {
+            tag: curve_tag,
+            min_x,
+            min_y,
+            min_z,
+            max_x,
+            max_y,
+            max_z,
+            physical_tags,
+            point_tags,
         },
     ))
 }
@@ -143,6 +207,67 @@ where
     ))
 }
 
+fn parse_volume<
+    'a,
+    SizeT: Unsigned + Integer + num::ToPrimitive,
+    IntT: Clone + Signed + Integer,
+    FloatT: Float,
+    SizeTParser,
+    IntParser,
+    FloatParser,
+    E: ParseError<&'a [u8]>,
+>(
+    size_t_parser: SizeTParser,
+    int_parser: IntParser,
+    double_parser: FloatParser,
+    input: &'a [u8],
+) -> IResult<&'a [u8], Volume<IntT, FloatT>, E>
+where
+    SizeTParser: Fn(&'a [u8]) -> IResult<&'a [u8], SizeT, E>,
+    IntParser: Fn(&'a [u8]) -> IResult<&'a [u8], IntT, E>,
+    FloatParser: Fn(&'a [u8]) -> IResult<&'a [u8], FloatT, E>,
+{
+    let (input, volume_tag) = int_parser(input)?;
+
+    let (input, min_x) = double_parser(input)?;
+    let (input, min_y) = double_parser(input)?;
+    let (input, min_z) = double_parser(input)?;
+    let (input, max_x) = double_parser(input)?;
+    let (input, max_y) = double_parser(input)?;
+    let (input, max_z) = double_parser(input)?;
+
+    let (input, num_physical_tags) = size_t_parser(input)?;
+    let num_physical_tags = num_physical_tags.to_usize().unwrap();
+
+    let mut physical_tags = vec![IntT::zero(); num_physical_tags];
+    for j in 0..num_physical_tags {
+        physical_tags[j] = int_parser(input)?.1;
+    }
+
+    let (input, num_bounding_surfaces) = size_t_parser(input)?;
+    let num_bounding_surfaces = num_bounding_surfaces.to_usize().unwrap();
+
+    let mut surface_tags = vec![IntT::zero(); num_bounding_surfaces];
+    for j in 0..num_bounding_surfaces {
+        surface_tags[j] = int_parser(input)?.1;
+    }
+
+    Ok((
+        input,
+        Volume {
+            tag: volume_tag,
+            min_x,
+            min_y,
+            min_z,
+            max_x,
+            max_y,
+            max_z,
+            physical_tags,
+            surface_tags,
+        },
+    ))
+}
+
 fn parse_entity_section<'a, E: ParseError<&'a [u8]>>(
     header: &MshHeader,
     input: &'a [u8],
@@ -160,26 +285,28 @@ fn parse_entity_section<'a, E: ParseError<&'a [u8]>>(
         unimplemented!("Point entity reading not implemented")
     }
 
-    for _ in 0..num_curves {
-        unimplemented!("Curve entity reading not implemented")
-    }
+    let (input, curves) = count(
+        |i| parse_curve(size_t_parser, int_parser, double_parser, i),
+        num_curves,
+    )(input)?;
 
     let (input, surfaces) = count(
         |i| parse_surface(size_t_parser, int_parser, double_parser, i),
         num_surfaces,
     )(input)?;
 
-    for _ in 0..num_volumes {
-        unimplemented!("Volume entity reading not implemented")
-    }
+    let (input, volumes) = count(
+        |i| parse_volume(size_t_parser, int_parser, double_parser, i),
+        num_volumes,
+    )(input)?;
 
     Ok((
         input,
         Entities {
             points: Vec::new(),
-            curves: Vec::new(),
+            curves,
             surfaces,
-            volumes: Vec::new(),
+            volumes,
         },
     ))
 }
@@ -318,6 +445,14 @@ fn nodes_per_element(element_type: i32) -> usize {
         5 => 8,
         6 => 6,
         7 => 5,
+        22 => 12,
+        23 => 15,
+        24 => 15,
+        25 => 21,
+        26 => 4,
+        27 => 5,
+        28 => 6,
+        29 => 20,
         _ => unimplemented!("Unsupported element type '{}'", element_type),
     }
 }
@@ -550,14 +685,4 @@ pub fn parse_msh_bytes<'a, E: ParseError<&'a [u8]>>(
             },
         },
     ))
-}
-
-pub fn msh_parses(msh: &[u8]) -> bool {
-    match parse_msh_bytes::<VerboseError<_>>(msh) {
-        Ok((_, _)) => true,
-        Err(err) => {
-            println!("Error occured during parsing: {:?}", err);
-            false
-        }
-    }
 }

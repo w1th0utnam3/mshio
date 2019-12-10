@@ -10,6 +10,34 @@ pub struct MshFile<UsizeT: Unsigned + Integer + Hash, IntT: Signed + Integer, Fl
     pub data: MshData<UsizeT, IntT, FloatT>,
 }
 
+impl<UsizeT: Unsigned + Integer + Hash, IntT: Signed + Integer, FloatT: Float>
+    MshFile<UsizeT, IntT, FloatT>
+{
+    pub fn total_node_count(&self) -> usize {
+        if let Some(nodes) = self.data.nodes.as_ref() {
+            let mut node_count = 0;
+            for node_entity in &nodes.node_entities {
+                node_count += node_entity.nodes.len();
+            }
+            node_count
+        } else {
+            0
+        }
+    }
+
+    pub fn total_element_count(&self) -> usize {
+        if let Some(elements) = self.data.elements.as_ref() {
+            let mut element_count = 0;
+            for element_entity in &elements.element_entities {
+                element_count += element_entity.elements.len();
+            }
+            element_count
+        } else {
+            0
+        }
+    }
+}
+
 #[derive(PartialEq, Debug)]
 pub struct MshHeader {
     pub version: f64,
@@ -28,17 +56,33 @@ pub struct MshData<UsizeT: Unsigned + Integer + Hash, IntT: Signed + Integer, Fl
 
 #[derive(PartialEq, Debug)]
 pub struct Entities<IntT: Signed + Integer, FloatT: Float> {
-    pub points: Vec<Point>,
-    pub curves: Vec<Curve>,
+    pub points: Vec<Point<IntT, FloatT>>,
+    pub curves: Vec<Curve<IntT, FloatT>>,
     pub surfaces: Vec<Surface<IntT, FloatT>>,
-    pub volumes: Vec<Volume>,
+    pub volumes: Vec<Volume<IntT, FloatT>>,
 }
 
 #[derive(PartialEq, Debug)]
-pub struct Point {}
+pub struct Point<IntT: Signed + Integer, FloatT: Float> {
+    pub tag: IntT,
+    pub x: FloatT,
+    pub y: FloatT,
+    pub z: FloatT,
+    pub physical_tags: Vec<IntT>,
+}
 
 #[derive(PartialEq, Debug)]
-pub struct Curve {}
+pub struct Curve<IntT: Signed + Integer, FloatT: Float> {
+    pub tag: IntT,
+    pub min_x: FloatT,
+    pub min_y: FloatT,
+    pub min_z: FloatT,
+    pub max_x: FloatT,
+    pub max_y: FloatT,
+    pub max_z: FloatT,
+    pub physical_tags: Vec<IntT>,
+    pub point_tags: Vec<IntT>,
+}
 
 #[derive(PartialEq, Debug)]
 pub struct Surface<IntT: Signed + Integer, FloatT: Float> {
@@ -54,7 +98,17 @@ pub struct Surface<IntT: Signed + Integer, FloatT: Float> {
 }
 
 #[derive(PartialEq, Debug)]
-pub struct Volume {}
+pub struct Volume<IntT: Signed + Integer, FloatT: Float> {
+    pub tag: IntT,
+    pub min_x: FloatT,
+    pub min_y: FloatT,
+    pub min_z: FloatT,
+    pub max_x: FloatT,
+    pub max_y: FloatT,
+    pub max_z: FloatT,
+    pub physical_tags: Vec<IntT>,
+    pub surface_tags: Vec<IntT>,
+}
 
 #[derive(PartialEq, Debug)]
 pub struct Nodes<UsizeT: Unsigned + Integer + Hash, IntT: Signed + Integer, FloatT: Float> {
