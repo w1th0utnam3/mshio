@@ -2,10 +2,10 @@ use std::str;
 
 use nom::character::complete::digit1;
 use nom::combinator::map;
-use nom::error::{ParseError, ErrorKind};
-use nom::Err;
+use nom::error::{ErrorKind, ParseError};
 use nom::number::complete as numbers;
 use nom::number::Endianness;
+use nom::Err;
 use nom::IResult;
 
 use num::{Float, Integer, NumCast, Signed, Unsigned};
@@ -61,10 +61,13 @@ pub fn uint_parser<'a, T: Unsigned + Integer + NumCast + str::FromStr, E: ParseE
                 str::FromStr::from_str(str::from_utf8(items).unwrap())
             }))(i)
             {
-                Ok((i, v)) => { match v {
+                Ok((i, v)) => match v {
                     Ok(v) => Ok((i, v)),
-                    Err(_) => Err(Err::Error(ParseError::from_error_kind(i, ErrorKind::ParseTo)))
-                }},
+                    Err(_) => Err(Err::Error(ParseError::from_error_kind(
+                        i,
+                        ErrorKind::ParseTo,
+                    ))),
+                },
                 Err(e) => Err(e),
             }) as fn(&'a [u8]) -> IResult<&'a [u8], T, E>
         }
@@ -124,10 +127,13 @@ pub fn int_parser<'a, T: Signed + Integer + NumCast + str::FromStr, E: ParseErro
                 str::FromStr::from_str(str::from_utf8(items).unwrap())
             }))(i)
             {
-                Ok((i, v)) => { match v {
+                Ok((i, v)) => match v {
                     Ok(v) => Ok((i, v)),
-                    Err(_) => Err(Err::Error(ParseError::from_error_kind(i, ErrorKind::ParseTo)))
-                }},
+                    Err(_) => Err(Err::Error(ParseError::from_error_kind(
+                        i,
+                        ErrorKind::ParseTo,
+                    ))),
+                },
                 Err(e) => Err(e),
             }) as fn(&'a [u8]) -> IResult<&'a [u8], T, E>
         }

@@ -20,11 +20,11 @@ fn compare_simple_ascii_bin() {
     let circle_2d_bin_raw = include_bytes!("circle_2d_bin.msh");
     let circle_2d_raw = include_str!("circle_2d.msh");
 
-    let (_, _msh_bin) = mshio::parse_bytes(circle_2d_bin_raw).unwrap();
-    let (_, _msh_ascii) = mshio::parse_bytes(circle_2d_raw.as_bytes()).unwrap();
+    let (_, msh_bin) = mshio::parse_bytes(circle_2d_bin_raw).unwrap();
+    let (_, msh_ascii) = mshio::parse_bytes(circle_2d_raw.as_bytes()).unwrap();
 
-    // TODO: Better comparison, following fails, maybe because of float
-    //assert_eq!(msh_bin, msh_ascii);
+    // Headers differ, but data should be the same
+    assert_eq!(msh_bin.data, msh_ascii.data);
 }
 
 /*

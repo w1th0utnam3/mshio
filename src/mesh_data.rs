@@ -5,20 +5,25 @@ use nom::number::Endianness;
 use num::{Float, Integer, Signed, Unsigned};
 
 #[derive(PartialEq, Debug)]
-pub struct Mesh<SizeT: Unsigned + Integer + Hash, IntT: Signed + Integer, FloatT: Float> {
-    pub header: Header,
-    pub entities: Entities<IntT, FloatT>,
-    pub nodes: Nodes<SizeT, IntT, FloatT>,
-    pub elements: Elements<SizeT, IntT>,
+pub struct MshFile<UsizeT: Unsigned + Integer + Hash, IntT: Signed + Integer, FloatT: Float> {
+    pub header: MshHeader,
+    pub data: MshData<UsizeT, IntT, FloatT>,
 }
 
 #[derive(PartialEq, Debug)]
-pub struct Header {
+pub struct MshHeader {
     pub version: f64,
     pub file_type: i32,
     pub size_t_size: usize,
     pub int_size: usize,
     pub endianness: Option<Endianness>,
+}
+
+#[derive(PartialEq, Debug)]
+pub struct MshData<UsizeT: Unsigned + Integer + Hash, IntT: Signed + Integer, FloatT: Float> {
+    pub entities: Entities<IntT, FloatT>,
+    pub nodes: Nodes<UsizeT, IntT, FloatT>,
+    pub elements: Elements<UsizeT, IntT>,
 }
 
 #[derive(PartialEq, Debug)]
@@ -52,18 +57,18 @@ pub struct Surface<IntT: Signed + Integer, FloatT: Float> {
 pub struct Volume {}
 
 #[derive(PartialEq, Debug)]
-pub struct Nodes<SizeT: Unsigned + Integer + Hash, IntT: Signed + Integer, FloatT: Float> {
-    pub min_node_tag: SizeT,
-    pub max_node_tag: SizeT,
-    pub node_entities: Vec<NodeEntity<SizeT, IntT, FloatT>>,
+pub struct Nodes<UsizeT: Unsigned + Integer + Hash, IntT: Signed + Integer, FloatT: Float> {
+    pub min_node_tag: UsizeT,
+    pub max_node_tag: UsizeT,
+    pub node_entities: Vec<NodeEntity<UsizeT, IntT, FloatT>>,
 }
 
 #[derive(PartialEq, Debug)]
-pub struct NodeEntity<SizeT: Unsigned + Integer + Hash, IntT: Signed + Integer, FloatT: Float> {
+pub struct NodeEntity<UsizeT: Unsigned + Integer + Hash, IntT: Signed + Integer, FloatT: Float> {
     pub entity_dim: IntT,
     pub entity_tag: IntT,
     pub parametric: bool,
-    pub node_tags: Option<HashMap<SizeT, usize>>,
+    pub node_tags: Option<HashMap<UsizeT, usize>>,
     pub nodes: Vec<Node<FloatT>>,
     pub parametric_nodes: Option<Vec<Node<FloatT>>>,
 }
@@ -76,23 +81,23 @@ pub struct Node<FloatT: Float> {
 }
 
 #[derive(PartialEq, Debug)]
-pub struct Elements<SizeT: Unsigned + Integer + Hash, IntT: Signed + Integer> {
-    pub min_node_tag: SizeT,
-    pub max_node_tag: SizeT,
-    pub element_entities: Vec<ElementEntity<SizeT, IntT>>,
+pub struct Elements<UsizeT: Unsigned + Integer + Hash, IntT: Signed + Integer> {
+    pub min_node_tag: UsizeT,
+    pub max_node_tag: UsizeT,
+    pub element_entities: Vec<ElementEntity<UsizeT, IntT>>,
 }
 
 #[derive(PartialEq, Debug)]
-pub struct ElementEntity<SizeT: Unsigned + Integer + Hash, IntT: Signed + Integer> {
+pub struct ElementEntity<UsizeT: Unsigned + Integer + Hash, IntT: Signed + Integer> {
     pub entity_dim: IntT,
     pub entity_tag: IntT,
     pub element_type: IntT,
-    pub element_tags: Option<HashMap<SizeT, usize>>,
-    pub elements: Vec<Element<SizeT>>,
+    pub element_tags: Option<HashMap<UsizeT, usize>>,
+    pub elements: Vec<Element<UsizeT>>,
 }
 
 #[derive(PartialEq, Debug)]
-pub struct Element<SizeT: Unsigned + Integer> {
-    pub element_tag: SizeT,
-    pub nodes: Vec<SizeT>,
+pub struct Element<UsizeT: Unsigned + Integer> {
+    pub element_tag: UsizeT,
+    pub nodes: Vec<UsizeT>,
 }

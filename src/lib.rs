@@ -21,7 +21,8 @@ mod num_parsers;
 pub use general_parsers as parsers;
 use general_parsers::{br, sp};
 use mesh_data::{
-    Element, ElementEntity, Elements, Entities, Header, Mesh, Node, NodeEntity, Nodes, Surface,
+    Element, ElementEntity, Elements, Entities, MshData, MshFile, MshHeader, Node, NodeEntity,
+    Nodes, Surface,
 };
 
 // TODO: Replace panics and unimplemented! calls with Err
@@ -34,7 +35,7 @@ fn print_u8(text: &str, input: &[u8]) {
 
 fn parse_header_section<'a, E: ParseError<&'a [u8]>>(
     input: &'a [u8],
-) -> IResult<&'a [u8], Header, E> {
+) -> IResult<&'a [u8], MshHeader, E> {
     let from_u8 = |items| str::FromStr::from_str(str::from_utf8(items).unwrap());
 
     let (input, version) = numbers::double(input)?;
@@ -70,7 +71,7 @@ fn parse_header_section<'a, E: ParseError<&'a [u8]>>(
 
     Ok((
         input,
-        Header {
+        MshHeader {
             version,
             file_type,
             size_t_size: data_size as usize,
@@ -142,7 +143,7 @@ where
 }
 
 fn parse_entity_section<'a>(
-    header: &Header,
+    header: &MshHeader,
     input: &'a [u8],
 ) -> IResult<&'a [u8], Entities<i32, f64>, VerboseError<&'a [u8]>> {
     let size_t_parser = num_parsers::uint_parser::<usize, _>(header.size_t_size, header.endianness);
@@ -267,7 +268,7 @@ where
 }
 
 fn parse_node_section<'a>(
-    header: &Header,
+    header: &MshHeader,
     input: &'a [u8],
 ) -> IResult<&'a [u8], Nodes<usize, i32, f64>, VerboseError<&'a [u8]>> {
     let size_t_parser = num_parsers::uint_parser::<usize, _>(header.size_t_size, header.endianness);
@@ -392,7 +393,7 @@ where
 }
 
 fn parse_element_section<'a>(
-    header: &Header,
+    header: &MshHeader,
     input: &'a [u8],
 ) -> IResult<&'a [u8], Elements<usize, i32>, VerboseError<&'a [u8]>> {
     let size_t_parser = num_parsers::uint_parser::<usize, _>(header.size_t_size, header.endianness);
@@ -429,7 +430,7 @@ fn parse_element_section<'a>(
 
 pub fn parse_bytes<'a>(
     input: &'a [u8],
-) -> IResult<&'a [u8], Mesh<usize, i32, f64>, VerboseError<&'a [u8]>> {
+) -> IResult<&'a [u8], MshFile<usize, i32, f64>, VerboseError<&'a [u8]>> {
     let (input, header) = parsers::parse_delimited_block(
         terminated(tag("$MeshFormat"), br),
         terminated(tag("$EndMeshFormat"), br),
@@ -459,11 +460,13 @@ pub fn parse_bytes<'a>(
 
     Ok((
         input,
-        Mesh {
+        MshFile {
             header,
-            entities,
-            nodes,
-            elements,
+            data: MshData {
+                entities,
+                nodes,
+                elements,
+            },
         },
     ))
 }
