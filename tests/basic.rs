@@ -27,18 +27,32 @@ fn compare_simple_ascii_bin() {
     assert_eq!(msh_bin.data, msh_ascii.data);
 }
 
-/*
 #[test]
-fn simple_test() {
+fn comment_section_test() {
     let msh = "\
 $MeshFormat
 4.1 0 8
 $EndMeshFormat
+$Comment
 Hello
-$EndMeshFormat
-";
-    mshio::parses(msh.as_bytes());
 
-    assert!(true);
+
+$EndComment
+
+";
+    assert!(mshio::msh_parses(msh.as_bytes()));
 }
-*/
+
+#[test]
+fn invalid_test() {
+    let msh = "\
+$MeshFormat
+4.1 0 8
+$EndMeshFormat
+$Comment
+$EndComment
+Hello
+
+";
+    assert!(!mshio::msh_parses(msh.as_bytes()));
+}

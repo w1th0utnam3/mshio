@@ -21,9 +21,9 @@ pub struct MshHeader {
 
 #[derive(PartialEq, Debug)]
 pub struct MshData<UsizeT: Unsigned + Integer + Hash, IntT: Signed + Integer, FloatT: Float> {
-    pub entities: Entities<IntT, FloatT>,
-    pub nodes: Nodes<UsizeT, IntT, FloatT>,
-    pub elements: Elements<UsizeT, IntT>,
+    pub entities: Option<Entities<IntT, FloatT>>,
+    pub nodes: Option<Nodes<UsizeT, IntT, FloatT>>,
+    pub elements: Option<Elements<UsizeT, IntT>>,
 }
 
 #[derive(PartialEq, Debug)]

@@ -3,13 +3,14 @@ use std::hash::Hash;
 use std::str;
 
 use nom::bytes::complete::tag;
-use nom::character::complete::digit1;
-use nom::combinator::map;
-use nom::error::{ParseError, VerboseError};
+use nom::character::complete::{alpha0, char, digit1};
+use nom::combinator::{map, peek};
+use nom::error::{context, ErrorKind, ParseError, VerboseError};
 use nom::multi::count;
 use nom::number::complete as numbers;
 use nom::number::Endianness;
 use nom::sequence::{delimited, preceded, terminated};
+use nom::Err;
 use nom::IResult;
 
 use num::{Float, Integer, Signed, Unsigned};
@@ -19,7 +20,7 @@ pub mod mesh_data;
 mod num_parsers;
 
 pub use general_parsers as parsers;
-use general_parsers::{br, sp};
+use general_parsers::{br, sp, take_sp};
 use mesh_data::{
     Element, ElementEntity, Elements, Entities, MshData, MshFile, MshHeader, Node, NodeEntity,
     Nodes, Surface,
@@ -437,26 +438,106 @@ pub fn parse_msh_bytes<'a, E: ParseError<&'a [u8]>>(
         parse_header_section,
     )(input)?;
 
-    // TODO: Support arbitrary order and repetition of blocks, support unrecognized headers
-    // To allow this, headers have to be recognized
+    // Closure to detect a line with a section start tag
+    let section_detected = |start_tag, input| {
+        peek::<_, _, (), _>(delimited(take_sp, tag(start_tag), br))(input).is_ok()
+    };
 
-    let (input, entities) = parsers::parse_delimited_block(
-        terminated(tag("$Entities"), br),
-        terminated(tag("$EndEntities"), br),
-        |i| parse_entity_section(&header, i),
-    )(input)?;
+    // Macro to apply a parser to a section delimited by start and end tags
+    macro_rules! parse_section {
+        ($start_tag:expr, $end_tag:expr, $parser:expr, $input:expr) => {
+            delimited(
+                delimited(take_sp, tag($start_tag), br),
+                $parser,
+                delimited(take_sp, tag($end_tag), take_sp),
+            )($input)
+        };
+    }
 
-    let (input, nodes) = parsers::parse_delimited_block(
-        terminated(tag("$Nodes"), br),
-        terminated(tag("$EndNodes"), br),
-        |i| parse_node_section(&header, i),
-    )(input)?;
+    let mut entity_sections = Vec::new();
+    let mut node_sections = Vec::new();
+    let mut element_sections = Vec::new();
 
-    let (input, elements) = parsers::parse_delimited_block(
-        terminated(tag("$Elements"), br),
-        terminated(tag("$EndElements"), br),
-        |i| parse_element_section(&header, i),
-    )(input)?;
+    let mut input = input;
+
+    // Loop over all sections of the mesh file
+    while !parsers::eof::<_, ()>(input).is_ok() {
+        // Check for entity section
+        if section_detected("$Entities", input) {
+            let (input_, entities) = parse_section!(
+                "$Entities",
+                "$EndEntities",
+                |i| parse_entity_section(&header, i),
+                input
+            )?;
+
+            entity_sections.push(entities);
+            input = input_;
+        }
+        // Check for node section
+        else if section_detected("$Nodes", input) {
+            let (input_, nodes) = parse_section!(
+                "$Nodes",
+                "$EndNodes",
+                |i| parse_node_section(&header, i),
+                input
+            )?;
+
+            node_sections.push(nodes);
+            input = input_;
+        }
+        // Check for elements section
+        else if section_detected("$Elements", input) {
+            let (input_, elements) = parse_section!(
+                "$Elements",
+                "$EndElements",
+                |i| parse_element_section(&header, i),
+                input
+            )?;
+
+            element_sections.push(elements);
+            input = input_;
+        }
+        // Check for unknown section (gets ignored)
+        else if let Ok((input_, section_header)) =
+            peek::<_, _, (), _>(preceded(take_sp, delimited(char('$'), alpha0, br)))(input)
+        {
+            let section_header = String::from_utf8_lossy(section_header);
+            let section_start_tag = format!("${}", section_header);
+            let section_end_tag = format!("$End{}", section_header);
+
+            let (input_, _) = parsers::delimited_block(
+                delimited(take_sp, tag(&section_start_tag[..]), br),
+                delimited(take_sp, tag(&section_end_tag[..]), take_sp),
+            )(input_)?;
+
+            input = input_;
+        }
+        // Check for invalid lines
+        else {
+            return context("Expected a section header", |i| {
+                Err(Err::Error(ParseError::from_error_kind(i, ErrorKind::Tag)))
+            })(input);
+        }
+    }
+
+    let entities = match entity_sections.len() {
+        1 => Some(entity_sections.remove(0)),
+        0 => None,
+        _ => unimplemented!("More than one entity section found"),
+    };
+
+    let nodes = match node_sections.len() {
+        1 => Some(node_sections.remove(0)),
+        0 => None,
+        _ => unimplemented!("More than one node section found"),
+    };
+
+    let elements = match element_sections.len() {
+        1 => Some(element_sections.remove(0)),
+        0 => None,
+        _ => unimplemented!("More than one element section found"),
+    };
 
     Ok((
         input,
@@ -473,13 +554,9 @@ pub fn parse_msh_bytes<'a, E: ParseError<&'a [u8]>>(
 
 pub fn msh_parses(msh: &[u8]) -> bool {
     match parse_msh_bytes::<VerboseError<_>>(msh) {
-        Ok((_, mesh)) => {
-            println!("Successfully parsed:");
-            println!("{:?}", mesh);
-            true
-        }
+        Ok((_, _)) => true,
         Err(err) => {
-            println!("{:?}", err);
+            println!("Error occured during parsing: {:?}", err);
             false
         }
     }

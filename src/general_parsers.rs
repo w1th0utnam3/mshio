@@ -1,8 +1,48 @@
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take, take_while};
-use nom::error::ParseError;
+use nom::error::{ErrorKind, ParseError};
 use nom::sequence::delimited;
+use nom::Err;
 use nom::{AsChar, IResult};
+
+/// Consumes the whole input
+///
+/// ```
+///
+/// let parser = mshio::parsers::anything::<_,(_,_)>;
+///
+/// assert_eq!(parser(""), Ok(("", "")));
+/// assert_eq!(parser("123"), Ok(("", "123")));
+/// assert_eq!(parser("123 456\t\n "), Ok(("", "123 456\t\n ")));
+/// ```
+pub fn anything<I, E: ParseError<I>>(i: I) -> IResult<I, I, E>
+where
+    I: nom::InputLength + nom::InputIter + nom::InputTake,
+{
+    take(i.input_len())(i)
+}
+
+/// Parses successfully if the input is empty and returns it
+///
+/// ```
+/// use nom::Err;
+/// use nom::error::{ErrorKind, ParseError};
+///
+/// let parser = mshio::parsers::eof::<_,(_,_)>;
+///
+/// assert_eq!(parser(""), Ok(("", "")));
+/// assert_eq!(parser("123"), Err(Err::Error(ParseError::from_error_kind("123", ErrorKind::Eof))));
+/// ```
+pub fn eof<I, E: ParseError<I>>(i: I) -> IResult<I, I, E>
+where
+    I: Clone + nom::InputLength,
+{
+    if i.input_len() == 0 {
+        Ok((i.clone(), i))
+    } else {
+        Err(Err::Error(ParseError::from_error_kind(i, ErrorKind::Eof)))
+    }
+}
 
 /// Consumes a single linebreak
 ///
