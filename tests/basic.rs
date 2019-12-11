@@ -1,8 +1,13 @@
-use std::fs::{OpenOptions};
+use std::fs::OpenOptions;
 use std::io::{BufReader, Read};
 
 fn read_bytes(path: &str) -> Vec<u8> {
-    let file = OpenOptions::new().read(true).write(false).create(false).open(path).unwrap();
+    let file = OpenOptions::new()
+        .read(true)
+        .write(false)
+        .create(false)
+        .open(path)
+        .unwrap();
     let mut buf_reader = BufReader::new(file);
 
     let mut data = Vec::new();

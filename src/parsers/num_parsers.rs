@@ -10,7 +10,7 @@ use nom::IResult;
 
 use num::{Float, Integer, NumCast, Signed, Unsigned};
 
-use crate::general_parsers::ws;
+use crate::parsers::ws;
 
 pub fn uint_parser<'a, T: Unsigned + Integer + NumCast + str::FromStr, E: ParseError<&'a [u8]>>(
     source_size: usize,
