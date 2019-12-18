@@ -2,10 +2,11 @@ use std::str;
 
 use nom::character::complete::digit1;
 use nom::combinator::map;
-use nom::error::ParseError;
+use nom::error::{context, ErrorKind, ParseError};
 use nom::number::complete as numbers;
 use nom::number::Endianness;
 use nom::sequence::{delimited, preceded};
+use nom::Err;
 use nom::IResult;
 
 use crate::mshfile::MshHeader;
@@ -19,7 +20,9 @@ pub(crate) fn parse_header_section<'a, E: ParseError<&'a [u8]>>(
     let (input, version) = numbers::double(input)?;
 
     if version != 4.1 {
-        unimplemented!("Only MSH files version 4.1 are supported");
+        return context("Only MSH file format version 4.1 is supported", |i| {
+            Err(Err::Error(ParseError::from_error_kind(i, ErrorKind::Tag)))
+        })(input);
     }
 
     let (input, file_type) = preceded(sp, map(digit1, from_u8))(input)?;
