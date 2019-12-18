@@ -2,24 +2,27 @@ use std::collections::HashMap;
 use std::hash::Hash;
 
 use nom::number::Endianness;
-use num::{Float, Integer, Signed, Unsigned};
+use num::{Float, Integer, Signed, ToPrimitive, Unsigned};
 
 #[derive(PartialEq, Debug)]
-pub struct MshFile<UsizeT: Unsigned + Integer + Hash, IntT: Signed + Integer, FloatT: Float> {
+pub struct MshFile<
+    UsizeT: Unsigned + Integer + ToPrimitive + Hash,
+    IntT: Signed + Integer + ToPrimitive,
+    FloatT: Float + ToPrimitive,
+> {
     pub header: MshHeader,
     pub data: MshData<UsizeT, IntT, FloatT>,
 }
 
-impl<UsizeT: Unsigned + Integer + Hash, IntT: Signed + Integer, FloatT: Float>
-    MshFile<UsizeT, IntT, FloatT>
+impl<
+        UsizeT: Unsigned + Integer + ToPrimitive + Hash,
+        IntT: Signed + Integer + ToPrimitive,
+        FloatT: Float + ToPrimitive,
+    > MshFile<UsizeT, IntT, FloatT>
 {
     pub fn total_node_count(&self) -> usize {
         if let Some(nodes) = self.data.nodes.as_ref() {
-            let mut node_count = 0;
-            for node_entity in &nodes.node_entities {
-                node_count += node_entity.nodes.len();
-            }
-            node_count
+            nodes.num_nodes.to_usize().unwrap()
         } else {
             0
         }
@@ -27,11 +30,7 @@ impl<UsizeT: Unsigned + Integer + Hash, IntT: Signed + Integer, FloatT: Float>
 
     pub fn total_element_count(&self) -> usize {
         if let Some(elements) = self.data.elements.as_ref() {
-            let mut element_count = 0;
-            for element_entity in &elements.element_entities {
-                element_count += element_entity.elements.len();
-            }
-            element_count
+            elements.num_elements.to_usize().unwrap()
         } else {
             0
         }
@@ -112,8 +111,13 @@ pub struct Volume<IntT: Signed + Integer, FloatT: Float> {
 
 #[derive(PartialEq, Debug)]
 pub struct Nodes<UsizeT: Unsigned + Integer + Hash, IntT: Signed + Integer, FloatT: Float> {
+    /// Total number of nodes over all node entities
+    pub num_nodes: UsizeT,
+    /// The smallest node tag assigned to a node
     pub min_node_tag: UsizeT,
+    /// The largest node tag assigned to a node
     pub max_node_tag: UsizeT,
+    /// Entities (blocks) of nodes
     pub node_entities: Vec<NodeEntity<UsizeT, IntT, FloatT>>,
 }
 
@@ -136,8 +140,13 @@ pub struct Node<FloatT: Float> {
 
 #[derive(PartialEq, Debug)]
 pub struct Elements<UsizeT: Unsigned + Integer + Hash, IntT: Signed + Integer> {
-    pub min_node_tag: UsizeT,
-    pub max_node_tag: UsizeT,
+    /// Total number of elements over all element entities
+    pub num_elements: UsizeT,
+    /// The smallest element tag assigned to an element
+    pub min_element_tag: UsizeT,
+    /// The largest element tag assigned to an element
+    pub max_element_tag: UsizeT,
+    /// Entities (blocks) of elements
     pub element_entities: Vec<ElementEntity<UsizeT, IntT>>,
 }
 

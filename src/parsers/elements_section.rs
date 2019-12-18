@@ -79,8 +79,9 @@ pub(crate) fn parse_element_section<'a, E: ParseError<&'a [u8]>>(
     Ok((
         input,
         Elements {
-            min_node_tag: min_element_tag,
-            max_node_tag: max_element_tag,
+            num_elements,
+            min_element_tag,
+            max_element_tag,
             element_entities: element_entity_blocks,
         },
     ))
@@ -88,7 +89,7 @@ pub(crate) fn parse_element_section<'a, E: ParseError<&'a [u8]>>(
 
 fn parse_element_entity<
     'a,
-    SizeT: Unsigned + Integer + num::ToPrimitive + Hash + Copy,
+    SizeT: Unsigned + Integer + num::ToPrimitive + Hash + Clone,
     IntT: Signed + Integer + num::ToPrimitive,
     SizeTParser,
     IntParser,
@@ -145,7 +146,7 @@ where
             elements
                 .iter()
                 .enumerate()
-                .map(|(i, ele)| (ele.element_tag, i))
+                .map(|(i, ele)| (ele.element_tag.clone(), i))
                 .collect::<HashMap<_, _>>(),
         )
     } else {

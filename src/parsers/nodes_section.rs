@@ -40,8 +40,9 @@ pub(crate) fn parse_node_section<'a, E: ParseError<&'a [u8]>>(
     Ok((
         input,
         Nodes {
-            min_node_tag: min_node_tag,
-            max_node_tag: max_node_tag,
+            num_nodes,
+            min_node_tag,
+            max_node_tag,
             node_entities: node_entity_blocks,
         },
     ))
