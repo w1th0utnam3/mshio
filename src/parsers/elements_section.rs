@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use std::hash::Hash;
 
-use nom::error::ParseError;
+use nom::error::{context, ErrorKind, ParseError};
 use nom::multi::count;
+use nom::Err;
 use nom::IResult;
 
 use num::{Integer, Signed, Unsigned};
@@ -14,8 +15,8 @@ use crate::parsers::num_parsers;
 ///
 /// See http://gmsh.info/doc/texinfo/gmsh.html#MSH-file-format
 /// and https://gitlab.onelab.info/gmsh/gmsh/blob/master/Common/GmshDefines.h
-fn nodes_per_element(element_type: i32) -> usize {
-    match element_type {
+fn nodes_per_element(element_type: i32) -> Result<usize, ()> {
+    Ok(match element_type {
         1 => 2,
         2 => 3,
         3 => 4,
@@ -23,6 +24,20 @@ fn nodes_per_element(element_type: i32) -> usize {
         5 => 8,
         6 => 6,
         7 => 5,
+        8 => 3,
+        9 => 6,
+        10 => 9,
+        11 => 10,
+        12 => 27,
+        13 => 18,
+        14 => 14,
+        15 => 1,
+        16 => 8,
+        17 => 20,
+        18 => 15,
+        19 => 13,
+        20 => 9,
+        21 => 10,
         22 => 12,
         23 => 15,
         24 => 15,
@@ -31,8 +46,8 @@ fn nodes_per_element(element_type: i32) -> usize {
         27 => 5,
         28 => 6,
         29 => 20,
-        _ => unimplemented!("Unsupported element type '{}'", element_type),
-    }
+        _ => return Err(()),
+    })
 }
 
 pub(crate) fn parse_element_section<'a, E: ParseError<&'a [u8]>>(
@@ -94,7 +109,14 @@ where
     let (input, num_elements_in_block) = size_t_parser(input)?;
     let num_elements_in_block = num_elements_in_block.to_usize().unwrap();
 
-    let num_nodes = nodes_per_element(element_type.to_i32().unwrap());
+    let num_nodes = match nodes_per_element(element_type.to_i32().unwrap()) {
+        Ok(v) => v,
+        Err(_) => {
+            return context("Unknown element tag found", |i| {
+                Err(Err::Error(ParseError::from_error_kind(i, ErrorKind::Tag)))
+            })(input)
+        }
+    };
 
     let parse_element = |input| {
         let (input, element_tag) = size_t_parser(input)?;
