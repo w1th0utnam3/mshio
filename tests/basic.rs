@@ -122,3 +122,39 @@ Hello
 ";
     assert!(!msh_parses(msh.as_bytes()));
 }
+
+#[test]
+fn old_msh_version() {
+    let msh = read_bytes("tests\\old_msh_version.msh");
+    assert!(!msh_parses(&msh));
+}
+
+#[test]
+fn coarse_bike_file() {
+    let msh = read_bytes("tests\\bike_coarse.obj_linear.msh");
+    assert!(msh_parses(&msh));
+
+    let (_, msh) = mshio::parse_msh_bytes::<()>(&msh).unwrap();
+    assert_eq!(msh.total_node_count(), 52);
+    assert_eq!(msh.total_element_count(), 54);
+}
+
+#[test]
+fn fine_bike_file() {
+    let msh = read_bytes("tests\\bike_original.obj_linear.msh");
+    assert!(msh_parses(&msh));
+
+    let (_, msh) = mshio::parse_msh_bytes::<()>(&msh).unwrap();
+    assert_eq!(msh.total_node_count(), 850);
+    assert_eq!(msh.total_element_count(), 1292);
+}
+
+#[test]
+fn fine_bike_curved_file() {
+    let msh = read_bytes("tests\\bike_original.obj_curved.msh");
+    assert!(msh_parses(&msh));
+
+    let (_, msh) = mshio::parse_msh_bytes::<()>(&msh).unwrap();
+    assert_eq!(msh.total_node_count(), 2698);
+    assert_eq!(msh.total_element_count(), 1292);
+}
