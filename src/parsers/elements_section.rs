@@ -59,11 +59,17 @@ where
 {
     let (input, element_type_raw) = int_parser(input)?;
     let element_type_raw = element_type_raw
-        .to_i16()
-        .expect("Element type does not fit into i16");
-    let element_type = ElementType::from_i16(element_type_raw).expect("Unsupported element type");
+        .to_i32()
+        .expect("Element type does not fit into i32");
 
-    Ok((input, element_type))
+    match ElementType::from_i32(element_type_raw) {
+        Some(element_type) => Ok((input, element_type)),
+        None => {
+            context("Unsupported element type found", |i| {
+                Err(Err::Error(ParseError::from_error_kind(i, ErrorKind::Tag)))
+            })(input)
+        }
+    }
 }
 
 fn parse_element_entity<'a, SizeT, IntT, SizeTParser, IntParser, E>(
@@ -84,17 +90,16 @@ where
     let (input, element_type) = parse_element_type(int_parser, input)?;
     let (input, num_elements_in_block) = size_t_parser(input)?;
 
-    // Convert element type to internal enum
-
     // Convert number of elements to usize for convenience
     let num_elements_in_block = num_elements_in_block
         .to_usize()
         .expect("Number of elements in block do not fit in usize");
 
+    // Try to get the number of nodes of the elements
     let num_nodes = match element_type.nodes() {
         Ok(v) => v,
         Err(_) => {
-            return context("Unknown element tag found", |i| {
+            return context("Unsupported element type found", |i| {
                 Err(Err::Error(ParseError::from_error_kind(i, ErrorKind::Tag)))
             })(input)
         }
