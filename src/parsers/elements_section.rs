@@ -6,49 +6,10 @@ use nom::multi::count;
 use nom::Err;
 use nom::IResult;
 
-use num::{Integer, Signed, Unsigned};
+use num::{FromPrimitive, Integer, Signed, ToPrimitive, Unsigned};
 
-use crate::mshfile::{Element, ElementEntity, Elements, MshHeader};
+use crate::mshfile::{Element, ElementEntity, ElementType, Elements, MshHeader};
 use crate::parsers::num_parsers;
-
-/// Returns the number of nodes per element type defined by GMSH
-///
-/// See http://gmsh.info/doc/texinfo/gmsh.html#MSH-file-format
-/// and https://gitlab.onelab.info/gmsh/gmsh/blob/master/Common/GmshDefines.h
-fn nodes_per_element(element_type: i32) -> Result<usize, ()> {
-    Ok(match element_type {
-        1 => 2,
-        2 => 3,
-        3 => 4,
-        4 => 4,
-        5 => 8,
-        6 => 6,
-        7 => 5,
-        8 => 3,
-        9 => 6,
-        10 => 9,
-        11 => 10,
-        12 => 27,
-        13 => 18,
-        14 => 14,
-        15 => 1,
-        16 => 8,
-        17 => 20,
-        18 => 15,
-        19 => 13,
-        20 => 9,
-        21 => 10,
-        22 => 12,
-        23 => 15,
-        24 => 15,
-        25 => 21,
-        26 => 4,
-        27 => 5,
-        28 => 6,
-        29 => 20,
-        _ => return Err(()),
-    })
-}
 
 pub(crate) fn parse_element_section<'a, E: ParseError<&'a [u8]>>(
     header: &MshHeader,
@@ -87,30 +48,50 @@ pub(crate) fn parse_element_section<'a, E: ParseError<&'a [u8]>>(
     ))
 }
 
-fn parse_element_entity<
-    'a,
-    SizeT: Unsigned + Integer + num::ToPrimitive + Hash + Clone,
-    IntT: Signed + Integer + num::ToPrimitive,
-    SizeTParser,
-    IntParser,
+fn parse_element_type<'a, IntT, IntParser, E>(
+    int_parser: IntParser,
+    input: &'a [u8],
+) -> IResult<&'a [u8], ElementType, E>
+where
+    IntT: Signed + Integer + ToPrimitive,
+    IntParser: Fn(&'a [u8]) -> IResult<&'a [u8], IntT, E>,
     E: ParseError<&'a [u8]>,
->(
+{
+    let (input, element_type_raw) = int_parser(input)?;
+    let element_type_raw = element_type_raw
+        .to_i16()
+        .expect("Element type does not fit into i16");
+    let element_type = ElementType::from_i16(element_type_raw).expect("Unsupported element type");
+
+    Ok((input, element_type))
+}
+
+fn parse_element_entity<'a, SizeT, IntT, SizeTParser, IntParser, E>(
     size_t_parser: SizeTParser,
     int_parser: IntParser,
     sparse_tags: bool,
     input: &'a [u8],
 ) -> IResult<&'a [u8], ElementEntity<SizeT, IntT>, E>
 where
+    SizeT: Unsigned + Integer + ToPrimitive + Hash + Clone,
+    IntT: Signed + Integer + ToPrimitive,
     SizeTParser: Fn(&'a [u8]) -> IResult<&'a [u8], SizeT, E>,
     IntParser: Fn(&'a [u8]) -> IResult<&'a [u8], IntT, E>,
+    E: ParseError<&'a [u8]>,
 {
     let (input, entity_dim) = int_parser(input)?;
     let (input, entity_tag) = int_parser(input)?;
-    let (input, element_type) = int_parser(input)?;
+    let (input, element_type) = parse_element_type(int_parser, input)?;
     let (input, num_elements_in_block) = size_t_parser(input)?;
-    let num_elements_in_block = num_elements_in_block.to_usize().unwrap();
 
-    let num_nodes = match nodes_per_element(element_type.to_i32().unwrap()) {
+    // Convert element type to internal enum
+
+    // Convert number of elements to usize for convenience
+    let num_elements_in_block = num_elements_in_block
+        .to_usize()
+        .expect("Number of elements in block do not fit in usize");
+
+    let num_nodes = match element_type.nodes() {
         Ok(v) => v,
         Err(_) => {
             return context("Unknown element tag found", |i| {

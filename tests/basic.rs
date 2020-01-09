@@ -1,6 +1,8 @@
 use std::fs::OpenOptions;
 use std::io::{BufReader, Read};
 
+use mshio::mshfile::ElementType;
+
 fn read_bytes(path: &str) -> Vec<u8> {
     let file = OpenOptions::new()
         .read(true)
@@ -39,6 +41,13 @@ fn simple_bin_file() {
     let (_, msh) = mshio::parse_msh_bytes::<()>(&circle_2d_bin).unwrap();
     assert_eq!(msh.total_node_count(), 25);
     assert_eq!(msh.total_element_count(), 20);
+    assert!(msh
+        .data
+        .elements
+        .unwrap()
+        .element_entities
+        .iter()
+        .all(|elem_entity| elem_entity.element_type == ElementType::Qua4));
 }
 
 #[test]
@@ -49,6 +58,13 @@ fn simple_ascii_file() {
     let (_, msh) = mshio::parse_msh_bytes::<()>(&circle_2d).unwrap();
     assert_eq!(msh.total_node_count(), 25);
     assert_eq!(msh.total_element_count(), 20);
+    assert!(msh
+        .data
+        .elements
+        .unwrap()
+        .element_entities
+        .iter()
+        .all(|elem_entity| elem_entity.element_type == ElementType::Qua4));
 }
 
 #[test]
@@ -71,6 +87,13 @@ fn fine_bin_file() {
     let (_, msh) = mshio::parse_msh_bytes::<()>(&circle_2d_bin).unwrap();
     assert_eq!(msh.total_node_count(), 1313);
     assert_eq!(msh.total_element_count(), 1280);
+    assert!(msh
+        .data
+        .elements
+        .unwrap()
+        .element_entities
+        .iter()
+        .all(|elem_entity| elem_entity.element_type == ElementType::Qua4));
 }
 
 #[test]
@@ -81,6 +104,16 @@ fn t13_bin_file() {
     let (_, msh) = mshio::parse_msh_bytes::<()>(&msh_bin).unwrap();
     assert_eq!(msh.total_node_count(), 788);
     assert_eq!(msh.total_element_count(), 1864);
+    assert!(msh
+        .data
+        .elements
+        .unwrap()
+        .element_entities
+        .iter()
+        .all(|elem_entity| {
+            elem_entity.element_type == ElementType::Lin2
+                || elem_entity.element_type == ElementType::Tri3
+        }));
 }
 
 #[test]
@@ -91,6 +124,13 @@ fn cylinder_bin_file() {
     let (_, msh) = mshio::parse_msh_bytes::<()>(&msh_bin).unwrap();
     assert_eq!(msh.total_node_count(), 49602);
     assert_eq!(msh.total_element_count(), 9792);
+    assert!(msh
+        .data
+        .elements
+        .unwrap()
+        .element_entities
+        .iter()
+        .all(|elem_entity| elem_entity.element_type == ElementType::Tet20));
 }
 
 #[test]
