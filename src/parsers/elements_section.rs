@@ -11,10 +11,13 @@ use num::{FromPrimitive, Integer, Signed, ToPrimitive, Unsigned};
 use crate::mshfile::{Element, ElementEntity, ElementType, Elements, MshHeader};
 use crate::parsers::num_parsers;
 
-pub(crate) fn parse_element_section<'a, E: ParseError<&'a [u8]>>(
+pub(crate) fn parse_element_section<'a, E>(
     header: &MshHeader,
     input: &'a [u8],
-) -> IResult<&'a [u8], Elements<usize, i32>, E> {
+) -> IResult<&'a [u8], Elements<usize, i32>, E>
+where
+    E: ParseError<&'a [u8]>,
+{
     let size_t_parser = num_parsers::uint_parser::<usize, _>(header.size_t_size, header.endianness);
 
     let (input, num_entity_blocks) = size_t_parser(input)?;
@@ -64,11 +67,9 @@ where
 
     match ElementType::from_i32(element_type_raw) {
         Some(element_type) => Ok((input, element_type)),
-        None => {
-            context("Unsupported element type found", |i| {
-                Err(Err::Error(ParseError::from_error_kind(i, ErrorKind::Tag)))
-            })(input)
-        }
+        None => context("Unsupported element type found", |i| {
+            Err(Err::Error(ParseError::from_error_kind(i, ErrorKind::Tag)))
+        })(input),
     }
 }
 

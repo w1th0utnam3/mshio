@@ -17,11 +17,12 @@ use parsers::{
     parse_element_section, parse_entity_section, parse_header_section, parse_node_section,
 };
 
+// TODO: Implement parser for point entities
 // TODO: Replace panics and unimplemented! calls with Err
-// TODO: Add enum for element types
-// TODO: Move section parsers to separate files
-// TODO: Import point entities
 // TODO: Decide if nom types in the pub functions signature are ok
+// TODO: Check imports of num vs num_traits
+// TODO: Define UsizeT, IntT and FloatT traits at a central place
+// TODO: Review the passing of primitive parser functions as generic parameters (don't support Copy)
 
 /// Debug helper to view u8 slice as utf8 str and print it
 #[allow(dead_code)]
