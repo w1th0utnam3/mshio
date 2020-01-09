@@ -5,20 +5,21 @@ use nom::number::Endianness;
 use num::{Float, Integer, Signed, ToPrimitive, Unsigned};
 
 #[derive(PartialEq, Debug)]
-pub struct MshFile<
+pub struct MshFile<UsizeT, IntT, FloatT>
+where
     UsizeT: Unsigned + Integer + ToPrimitive + Hash,
     IntT: Signed + Integer + ToPrimitive,
     FloatT: Float + ToPrimitive,
-> {
+{
     pub header: MshHeader,
     pub data: MshData<UsizeT, IntT, FloatT>,
 }
 
-impl<
-        UsizeT: Unsigned + Integer + ToPrimitive + Hash,
-        IntT: Signed + Integer + ToPrimitive,
-        FloatT: Float + ToPrimitive,
-    > MshFile<UsizeT, IntT, FloatT>
+impl<UsizeT, IntT, FloatT> MshFile<UsizeT, IntT, FloatT>
+where
+    UsizeT: Unsigned + Integer + ToPrimitive + Hash,
+    IntT: Signed + Integer + ToPrimitive,
+    FloatT: Float + ToPrimitive,
 {
     pub fn total_node_count(&self) -> usize {
         if let Some(nodes) = self.data.nodes.as_ref() {
@@ -47,14 +48,23 @@ pub struct MshHeader {
 }
 
 #[derive(PartialEq, Debug)]
-pub struct MshData<UsizeT: Unsigned + Integer + Hash, IntT: Signed + Integer, FloatT: Float> {
+pub struct MshData<UsizeT, IntT, FloatT>
+where
+    UsizeT: Unsigned + Integer + Hash,
+    IntT: Signed + Integer,
+    FloatT: Float,
+{
     pub entities: Option<Entities<IntT, FloatT>>,
     pub nodes: Option<Nodes<UsizeT, IntT, FloatT>>,
     pub elements: Option<Elements<UsizeT, IntT>>,
 }
 
 #[derive(PartialEq, Debug)]
-pub struct Entities<IntT: Signed + Integer, FloatT: Float> {
+pub struct Entities<IntT, FloatT>
+where
+    IntT: Signed + Integer,
+    FloatT: Float,
+{
     pub points: Vec<Point<IntT, FloatT>>,
     pub curves: Vec<Curve<IntT, FloatT>>,
     pub surfaces: Vec<Surface<IntT, FloatT>>,
@@ -62,7 +72,11 @@ pub struct Entities<IntT: Signed + Integer, FloatT: Float> {
 }
 
 #[derive(PartialEq, Debug)]
-pub struct Point<IntT: Signed + Integer, FloatT: Float> {
+pub struct Point<IntT, FloatT>
+where
+    IntT: Signed + Integer,
+    FloatT: Float,
+{
     pub tag: IntT,
     pub x: FloatT,
     pub y: FloatT,
@@ -71,7 +85,11 @@ pub struct Point<IntT: Signed + Integer, FloatT: Float> {
 }
 
 #[derive(PartialEq, Debug)]
-pub struct Curve<IntT: Signed + Integer, FloatT: Float> {
+pub struct Curve<IntT, FloatT>
+where
+    IntT: Signed + Integer,
+    FloatT: Float,
+{
     pub tag: IntT,
     pub min_x: FloatT,
     pub min_y: FloatT,
@@ -84,7 +102,11 @@ pub struct Curve<IntT: Signed + Integer, FloatT: Float> {
 }
 
 #[derive(PartialEq, Debug)]
-pub struct Surface<IntT: Signed + Integer, FloatT: Float> {
+pub struct Surface<IntT, FloatT>
+where
+    IntT: Signed + Integer,
+    FloatT: Float,
+{
     pub tag: IntT,
     pub min_x: FloatT,
     pub min_y: FloatT,
@@ -97,7 +119,11 @@ pub struct Surface<IntT: Signed + Integer, FloatT: Float> {
 }
 
 #[derive(PartialEq, Debug)]
-pub struct Volume<IntT: Signed + Integer, FloatT: Float> {
+pub struct Volume<IntT, FloatT>
+where
+    IntT: Signed + Integer,
+    FloatT: Float,
+{
     pub tag: IntT,
     pub min_x: FloatT,
     pub min_y: FloatT,
@@ -110,7 +136,12 @@ pub struct Volume<IntT: Signed + Integer, FloatT: Float> {
 }
 
 #[derive(PartialEq, Debug)]
-pub struct Nodes<UsizeT: Unsigned + Integer + Hash, IntT: Signed + Integer, FloatT: Float> {
+pub struct Nodes<UsizeT, IntT, FloatT>
+where
+    UsizeT: Unsigned + Integer + Hash,
+    IntT: Signed + Integer,
+    FloatT: Float,
+{
     /// Total number of nodes over all node entities
     pub num_nodes: UsizeT,
     /// The smallest node tag assigned to a node
@@ -122,7 +153,12 @@ pub struct Nodes<UsizeT: Unsigned + Integer + Hash, IntT: Signed + Integer, Floa
 }
 
 #[derive(PartialEq, Debug)]
-pub struct NodeEntity<UsizeT: Unsigned + Integer + Hash, IntT: Signed + Integer, FloatT: Float> {
+pub struct NodeEntity<UsizeT, IntT, FloatT>
+where
+    UsizeT: Unsigned + Integer + Hash,
+    IntT: Signed + Integer,
+    FloatT: Float,
+{
     pub entity_dim: IntT,
     pub entity_tag: IntT,
     pub parametric: bool,
@@ -132,14 +168,21 @@ pub struct NodeEntity<UsizeT: Unsigned + Integer + Hash, IntT: Signed + Integer,
 }
 
 #[derive(PartialEq, Debug)]
-pub struct Node<FloatT: Float> {
+pub struct Node<FloatT>
+where
+    FloatT: Float,
+{
     pub x: FloatT,
     pub y: FloatT,
     pub z: FloatT,
 }
 
 #[derive(PartialEq, Debug)]
-pub struct Elements<UsizeT: Unsigned + Integer + Hash, IntT: Signed + Integer> {
+pub struct Elements<UsizeT, IntT>
+where
+    UsizeT: Unsigned + Integer + Hash,
+    IntT: Signed + Integer,
+{
     /// Total number of elements over all element entities
     pub num_elements: UsizeT,
     /// The smallest element tag assigned to an element
@@ -151,7 +194,11 @@ pub struct Elements<UsizeT: Unsigned + Integer + Hash, IntT: Signed + Integer> {
 }
 
 #[derive(PartialEq, Debug)]
-pub struct ElementEntity<UsizeT: Unsigned + Integer + Hash, IntT: Signed + Integer> {
+pub struct ElementEntity<UsizeT, IntT>
+where
+    UsizeT: Unsigned + Integer + Hash,
+    IntT: Signed + Integer,
+{
     pub entity_dim: IntT,
     pub entity_tag: IntT,
     pub element_type: IntT,
@@ -160,7 +207,10 @@ pub struct ElementEntity<UsizeT: Unsigned + Integer + Hash, IntT: Signed + Integ
 }
 
 #[derive(PartialEq, Debug)]
-pub struct Element<UsizeT: Unsigned + Integer> {
+pub struct Element<UsizeT>
+where
+    UsizeT: Unsigned + Integer,
+{
     pub element_tag: UsizeT,
     pub nodes: Vec<UsizeT>,
 }
