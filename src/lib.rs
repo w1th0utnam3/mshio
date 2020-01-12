@@ -9,6 +9,7 @@ use nom::sequence::{delimited, preceded, terminated};
 use nom::Err;
 use nom::IResult;
 
+/// Contains all types that are used to represent parsed MSH files
 pub mod mshfile;
 pub mod parsers;
 
@@ -43,6 +44,7 @@ impl<'a> TryFrom<&'a [u8]> for MshFile<usize, i32, f64> {
     }
 }
 
+/// Try to parse a MshFile from a slice of bytes
 pub fn parse_msh_bytes<'a, E: ParseError<&'a [u8]>>(
     input: &'a [u8],
 ) -> IResult<&'a [u8], MshFile<usize, i32, f64>, E> {

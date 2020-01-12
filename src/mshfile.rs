@@ -5,6 +5,10 @@ use nom::number::Endianness;
 use num::{Float, Integer, Signed, ToPrimitive, Unsigned};
 use num_derive::FromPrimitive;
 
+/// A parsed MSH file containing mesh and header data
+///
+/// Models MSH files after revision 4.1 described at
+/// [gmsh.info](http://gmsh.info/doc/texinfo/gmsh.html#MSH-file-format)
 #[derive(PartialEq, Debug)]
 pub struct MshFile<UsizeT, IntT, FloatT>
 where
@@ -12,7 +16,9 @@ where
     IntT: Signed + Integer + ToPrimitive,
     FloatT: Float + ToPrimitive,
 {
+    /// Data extracted from the file format header
     pub header: MshHeader,
+    /// Actual mesh data of the MSH file
     pub data: MshData<UsizeT, IntT, FloatT>,
 }
 
@@ -22,6 +28,7 @@ where
     IntT: Signed + Integer + ToPrimitive,
     FloatT: Float + ToPrimitive,
 {
+    /// Returns the total number of nodes in the MSH file
     pub fn total_node_count(&self) -> usize {
         if let Some(nodes) = self.data.nodes.as_ref() {
             nodes.num_nodes.to_usize().unwrap()
@@ -30,6 +37,7 @@ where
         }
     }
 
+    /// Returns the total number of elements in the MSH file
     pub fn total_element_count(&self) -> usize {
         if let Some(elements) = self.data.elements.as_ref() {
             elements.num_elements.to_usize().unwrap()
@@ -39,15 +47,22 @@ where
     }
 }
 
+/// The header of a MSH file (irrelevant for most users)
 #[derive(PartialEq, Debug)]
 pub struct MshHeader {
+    /// File format version of the parsed MSH file
     pub version: f64,
+    /// File type of the MSH file (0=ascii, 1=binary)
     pub file_type: i32,
+    /// Size in bytes of the size_t data type in this MSH file
     pub size_t_size: usize,
+    /// Size in bytes of the int data type in this MSH file
     pub int_size: usize,
+    /// The detected endianness of this MSh file if it is binary
     pub endianness: Option<Endianness>,
 }
 
+/// Mesh data of a
 #[derive(PartialEq, Debug)]
 pub struct MshData<UsizeT, IntT, FloatT>
 where
@@ -55,11 +70,15 @@ where
     IntT: Signed + Integer,
     FloatT: Float,
 {
+    /// Geometric entities of this mesh such as points, curves, etc. (if it contains entities)
     pub entities: Option<Entities<IntT, FloatT>>,
+    /// Node data of this mesh (if it contains nodes)
     pub nodes: Option<Nodes<UsizeT, IntT, FloatT>>,
+    /// Element data of this mesh (if it contains nodes)
     pub elements: Option<Elements<UsizeT, IntT>>,
 }
 
+/// Boundary representations of geometrical entities of the MSH file
 #[derive(PartialEq, Debug)]
 pub struct Entities<IntT, FloatT>
 where
@@ -72,70 +91,115 @@ where
     pub volumes: Vec<Volume<IntT, FloatT>>,
 }
 
+/// A geometrical point entity
 #[derive(PartialEq, Debug)]
 pub struct Point<IntT, FloatT>
 where
     IntT: Signed + Integer,
     FloatT: Float,
 {
+    /// The entity tag of this point
     pub tag: IntT,
+    /// X-coordinate of this point
     pub x: FloatT,
+    /// Y-coordinate of this point
     pub y: FloatT,
+    /// Z-coordinate of this point
     pub z: FloatT,
+    /// Tags of physical groups this point belongs to
+    ///
+    /// This is currently unimplemented.
     pub physical_tags: Vec<IntT>,
 }
 
+/// A geometrical curve entity and its boundary
 #[derive(PartialEq, Debug)]
 pub struct Curve<IntT, FloatT>
 where
     IntT: Signed + Integer,
     FloatT: Float,
 {
+    /// The entity tag of this curve
     pub tag: IntT,
+    /// Lower x-coordinate bound of this curve
     pub min_x: FloatT,
+    /// Lower y-coordinate bound of this curve
     pub min_y: FloatT,
+    /// Lower z-coordinate bound of this curve
     pub min_z: FloatT,
+    /// Upper x-coordinate bound of this curve
     pub max_x: FloatT,
+    /// Upper y-coordinate bound of this curve
     pub max_y: FloatT,
+    /// Upper z-coordinate bound of this curve
     pub max_z: FloatT,
+    /// Tags of physical groups this curve belongs to
+    ///
+    /// This is currently unimplemented.
     pub physical_tags: Vec<IntT>,
+    /// Tags of the curves's bounding points
     pub point_tags: Vec<IntT>,
 }
 
+/// A geometrical surface entity and its boundary
 #[derive(PartialEq, Debug)]
 pub struct Surface<IntT, FloatT>
 where
     IntT: Signed + Integer,
     FloatT: Float,
 {
+    /// The entity tag of this surface
     pub tag: IntT,
+    /// Lower x-coordinate bound of this surface
     pub min_x: FloatT,
+    /// Lower y-coordinate bound of this surface
     pub min_y: FloatT,
+    /// Lower z-coordinate bound of this surface
     pub min_z: FloatT,
+    /// Upper x-coordinate bound of this surface
     pub max_x: FloatT,
+    /// Upper y-coordinate bound of this surface
     pub max_y: FloatT,
+    /// Upper z-coordinate bound of this surface
     pub max_z: FloatT,
+    /// Tags of physical groups this surface belongs to
+    ///
+    /// This is currently unimplemented.
     pub physical_tags: Vec<IntT>,
+    /// Tags of the surface's bounding curves
     pub curve_tags: Vec<IntT>,
 }
 
+/// A geometrical volume entity and its boundary
 #[derive(PartialEq, Debug)]
 pub struct Volume<IntT, FloatT>
 where
     IntT: Signed + Integer,
     FloatT: Float,
 {
+    /// The entity tag of this volume
     pub tag: IntT,
+    /// Lower x-coordinate bound of this volume
     pub min_x: FloatT,
+    /// Lower y-coordinate bound of this volume
     pub min_y: FloatT,
+    /// Lower z-coordinate bound of this volume
     pub min_z: FloatT,
+    /// Upper x-coordinate bound of this volume
     pub max_x: FloatT,
+    /// Upper y-coordinate bound of this volume
     pub max_y: FloatT,
+    /// Upper z-coordinate bound of this volume
     pub max_z: FloatT,
+    /// Tags of physical groups this volume belongs to
+    ///
+    /// This is currently unimplemented.
     pub physical_tags: Vec<IntT>,
+    /// Tags of the volumes's bounding surfaces
     pub surface_tags: Vec<IntT>,
 }
 
+/// All node data of a mesh
 #[derive(PartialEq, Debug)]
 pub struct Nodes<UsizeT, IntT, FloatT>
 where
@@ -143,82 +207,118 @@ where
     IntT: Signed + Integer,
     FloatT: Float,
 {
-    /// Total number of nodes over all node entities
+    /// Total number of nodes across all node blocks
     pub num_nodes: UsizeT,
     /// The smallest node tag assigned to a node
     pub min_node_tag: UsizeT,
     /// The largest node tag assigned to a node
     pub max_node_tag: UsizeT,
-    /// Entities (blocks) of nodes
-    pub node_entities: Vec<NodeEntity<UsizeT, IntT, FloatT>>,
+    /// Blocks of nodes with shared properties
+    pub node_entities: Vec<NodeBlock<UsizeT, IntT, FloatT>>,
 }
 
+/// A block of nodes
 #[derive(PartialEq, Debug)]
-pub struct NodeEntity<UsizeT, IntT, FloatT>
+pub struct NodeBlock<UsizeT, IntT, FloatT>
 where
     UsizeT: Unsigned + Integer + Hash,
     IntT: Signed + Integer,
     FloatT: Float,
 {
+    /// The number of dimensions of nodes in this block
     pub entity_dim: IntT,
+    /// The tag of the geometric entity this block of elements is associated to
     pub entity_tag: IntT,
+    /// Whether this node entity provides parametric coordinates for its nodes
+    ///
+    /// This is currently unimplemented.
     pub parametric: bool,
+    /// Maps the tag of each node to its linear index in this block
+    ///
+    /// Node tags (used to reference nodes from entities) can be non-sequential (i.e. sparse).
+    /// This map is only present if the node tags of this block are actually sparse.
+    /// Otherwise it is None.
     pub node_tags: Option<HashMap<UsizeT, usize>>,
+    /// The nodes of this block
     pub nodes: Vec<Node<FloatT>>,
+    /// May contain parametric coordinates of the nodes
+    ///
+    /// This is currently unimplemented.
     pub parametric_nodes: Option<Vec<Node<FloatT>>>,
 }
 
+/// Coordinates of a single node
+///
+/// Note that only the components corresponding to the number of dimensions of the node's block
+/// may contain meaningful values.
 #[derive(PartialEq, Debug)]
 pub struct Node<FloatT>
 where
     FloatT: Float,
 {
+    /// X-coordinate of the node
     pub x: FloatT,
+    /// Y-coordinate of the node (if entity_dim > 1)
     pub y: FloatT,
+    /// Z-coordinate of the node (if entity_dim > 2)
     pub z: FloatT,
 }
 
+/// All element data of a mesh
 #[derive(PartialEq, Debug)]
 pub struct Elements<UsizeT, IntT>
 where
     UsizeT: Unsigned + Integer + Hash,
     IntT: Signed + Integer,
 {
-    /// Total number of elements over all element entities
+    /// Total number of elements across all element blocks
     pub num_elements: UsizeT,
     /// The smallest element tag assigned to an element
     pub min_element_tag: UsizeT,
     /// The largest element tag assigned to an element
     pub max_element_tag: UsizeT,
-    /// Entities (blocks) of elements
-    pub element_entities: Vec<ElementEntity<UsizeT, IntT>>,
+    /// Blocks of elements with shared properties
+    pub element_entities: Vec<ElementBlock<UsizeT, IntT>>,
 }
 
+/// A block of elements
 #[derive(PartialEq, Debug)]
-pub struct ElementEntity<UsizeT, IntT>
+pub struct ElementBlock<UsizeT, IntT>
 where
     UsizeT: Unsigned + Integer + Hash,
     IntT: Signed + Integer,
 {
+    /// The number of dimensions of elements in this block
     pub entity_dim: IntT,
+    /// The tag of the geometric entity this block of elements is associated to
     pub entity_tag: IntT,
+    /// The type of all elements in this block
     pub element_type: ElementType,
+    /// Maps the tag of each element to its linear index in this block
+    ///
+    /// Element tags (used to reference elements from entities) can be non-sequential (i.e. sparse).
+    /// This map is only present if the element tags of this block are actually sparse.
+    /// Otherwise it is None.
     pub element_tags: Option<HashMap<UsizeT, usize>>,
+    /// The elements of this block
     pub elements: Vec<Element<UsizeT>>,
 }
 
+/// Data of one mesh element
 #[derive(PartialEq, Debug)]
 pub struct Element<UsizeT>
 where
     UsizeT: Unsigned + Integer,
 {
+    /// Tag of this element
     pub element_tag: UsizeT,
+    /// The tags of nodes associated to this element
     pub nodes: Vec<UsizeT>,
 }
 
 /// Element types supported by the MSH file format
 ///
-/// Based on https://gitlab.onelab.info/gmsh/gmsh/blob/master/Common/GmshDefines.h
+/// Based on Gmsh's [GmshDefines.h](https://gitlab.onelab.info/gmsh/gmsh/blob/master/Common/GmshDefines.h) header.
 /// ```
 /// use mshio::mshfile::ElementType;
 /// use num_traits::FromPrimitive;
@@ -378,7 +478,7 @@ pub enum ElementType {
 }
 
 impl ElementType {
-    /// Number of nodes per element of an element type
+    /// Returns the number of nodes per element of an element type
     pub fn nodes(&self) -> Result<usize, ()> {
         Ok(match self {
             ElementType::Lin2 => 2,
