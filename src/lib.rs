@@ -11,15 +11,16 @@ use nom::IResult;
 
 /// Contains all types that are used to represent parsed MSH files
 pub mod mshfile;
-pub mod parsers;
+mod parsers;
 
-use mshfile::{MshData, MshFile};
+pub use mshfile::*;
 use parsers::{br, take_sp};
 use parsers::{
     parse_element_section, parse_entity_section, parse_header_section, parse_node_section,
 };
 
 // TODO: Implement parser for point entities
+// TODO: Implement parser for physical groups
 // TODO: Replace panics and unimplemented! calls with Err
 // TODO: Decide if nom types in the pub functions signature are ok
 // TODO: Check imports of num vs num_traits
@@ -32,7 +33,7 @@ fn print_u8(text: &str, input: &[u8]) {
     println!("{}: '{}'", text, String::from_utf8_lossy(input));
 }
 
-/// Try to parse a MshFile from the given bytes array
+/// Try to parse a MshFile from a slice of bytes
 impl<'a> TryFrom<&'a [u8]> for MshFile<usize, i32, f64> {
     type Error = ();
 
