@@ -8,13 +8,13 @@ use nom::{AsChar, IResult};
 /// Consumes the whole input
 ///
 /// ```
-///
 /// let parser = mshio::parsers::anything::<_,(_,_)>;
 ///
 /// assert_eq!(parser(""), Ok(("", "")));
 /// assert_eq!(parser("123"), Ok(("", "123")));
 /// assert_eq!(parser("123 456\t\n "), Ok(("", "123 456\t\n ")));
 /// ```
+#[allow(dead_code)]
 pub fn anything<I, E: ParseError<I>>(i: I) -> IResult<I, I, E>
 where
     I: nom::InputLength + nom::InputIter + nom::InputTake,
@@ -136,6 +136,7 @@ where
 /// assert_eq!(parser("$Hello456"), Ok(("$Hello456", "")));
 /// assert_eq!(parser("llo456"), Err(Err::Error(ParseError::from_error_kind("llo456", ErrorKind::Eof))));
 /// ```
+#[allow(dead_code)]
 pub fn take_till_parses<I, O, E: ParseError<I>, F>(parser: F) -> impl Fn(I) -> IResult<I, I, E>
 where
     I: Clone + nom::InputIter + nom::InputTake,

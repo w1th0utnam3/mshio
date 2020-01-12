@@ -1,14 +1,12 @@
 use std::collections::HashMap;
-use std::hash::Hash;
 
 use nom::error::{context, ErrorKind, ParseError};
 use nom::multi::count;
 use nom::Err;
 use nom::IResult;
+use num_traits::FromPrimitive;
 
-use num::{FromPrimitive, Integer, Signed, ToPrimitive, Unsigned};
-
-use crate::mshfile::{Element, ElementEntity, ElementType, Elements, MshHeader};
+use crate::mshfile::{Element, ElementBlock, ElementType, Elements, MshHeader, MshIntT, MshUsizeT};
 use crate::parsers::num_parsers;
 
 pub(crate) fn parse_element_section<'a, E>(
@@ -51,13 +49,13 @@ where
     ))
 }
 
-fn parse_element_type<'a, IntT, IntParser, E>(
+fn parse_element_type<'a, I, IntParser, E>(
     int_parser: IntParser,
     input: &'a [u8],
 ) -> IResult<&'a [u8], ElementType, E>
 where
-    IntT: Signed + Integer + ToPrimitive,
-    IntParser: Fn(&'a [u8]) -> IResult<&'a [u8], IntT, E>,
+    I: MshIntT,
+    IntParser: Fn(&'a [u8]) -> IResult<&'a [u8], I, E>,
     E: ParseError<&'a [u8]>,
 {
     let (input, element_type_raw) = int_parser(input)?;
@@ -73,17 +71,17 @@ where
     }
 }
 
-fn parse_element_entity<'a, SizeT, IntT, SizeTParser, IntParser, E>(
+fn parse_element_entity<'a, U, I, SizeTParser, IntParser, E>(
     size_t_parser: SizeTParser,
     int_parser: IntParser,
     sparse_tags: bool,
     input: &'a [u8],
-) -> IResult<&'a [u8], ElementEntity<SizeT, IntT>, E>
+) -> IResult<&'a [u8], ElementBlock<U, I>, E>
 where
-    SizeT: Unsigned + Integer + ToPrimitive + Hash + Clone,
-    IntT: Signed + Integer + ToPrimitive,
-    SizeTParser: Fn(&'a [u8]) -> IResult<&'a [u8], SizeT, E>,
-    IntParser: Fn(&'a [u8]) -> IResult<&'a [u8], IntT, E>,
+    U: MshUsizeT,
+    I: MshIntT,
+    SizeTParser: Fn(&'a [u8]) -> IResult<&'a [u8], U, E>,
+    IntParser: Fn(&'a [u8]) -> IResult<&'a [u8], I, E>,
     E: ParseError<&'a [u8]>,
 {
     let (input, entity_dim) = int_parser(input)?;
@@ -142,7 +140,7 @@ where
 
     Ok((
         input,
-        ElementEntity {
+        ElementBlock {
             entity_dim,
             entity_tag,
             element_type,

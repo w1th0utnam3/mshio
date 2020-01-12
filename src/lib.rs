@@ -11,7 +11,8 @@ use nom::IResult;
 
 /// Contains all types that are used to represent parsed MSH files
 pub mod mshfile;
-mod parsers;
+/// Parser utility functions used by this MSH parser (may be private in the future)
+pub mod parsers;
 
 pub use mshfile::*;
 use parsers::{br, take_sp};

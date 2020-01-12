@@ -2,9 +2,7 @@ use nom::error::ParseError;
 use nom::multi::count;
 use nom::IResult;
 
-use num::{Float, Integer, Signed, Unsigned};
-
-use crate::mshfile::{Curve, Entities, MshHeader, Surface, Volume};
+use crate::mshfile::{Curve, Entities, MshFloatT, MshHeader, MshIntT, MshUsizeT, Surface, Volume};
 use crate::parsers::num_parsers;
 
 pub(crate) fn parse_entity_section<'a, E: ParseError<&'a [u8]>>(
@@ -52,9 +50,9 @@ pub(crate) fn parse_entity_section<'a, E: ParseError<&'a [u8]>>(
 
 fn parse_curve<
     'a,
-    SizeT: Unsigned + Integer + num::ToPrimitive,
-    IntT: Clone + Signed + Integer,
-    FloatT: Float,
+    U: MshUsizeT,
+    I: MshIntT,
+    F: MshFloatT,
     SizeTParser,
     IntParser,
     FloatParser,
@@ -64,11 +62,11 @@ fn parse_curve<
     int_parser: IntParser,
     double_parser: FloatParser,
     input: &'a [u8],
-) -> IResult<&'a [u8], Curve<IntT, FloatT>, E>
+) -> IResult<&'a [u8], Curve<I, F>, E>
 where
-    SizeTParser: Fn(&'a [u8]) -> IResult<&'a [u8], SizeT, E>,
-    IntParser: Fn(&'a [u8]) -> IResult<&'a [u8], IntT, E>,
-    FloatParser: Fn(&'a [u8]) -> IResult<&'a [u8], FloatT, E>,
+    SizeTParser: Fn(&'a [u8]) -> IResult<&'a [u8], U, E>,
+    IntParser: Fn(&'a [u8]) -> IResult<&'a [u8], I, E>,
+    FloatParser: Fn(&'a [u8]) -> IResult<&'a [u8], F, E>,
 {
     let (input, curve_tag) = int_parser(input)?;
 
@@ -82,7 +80,7 @@ where
     let (input, num_physical_tags) = size_t_parser(input)?;
     let num_physical_tags = num_physical_tags.to_usize().unwrap();
 
-    let mut physical_tags = vec![IntT::zero(); num_physical_tags];
+    let mut physical_tags = vec![I::zero(); num_physical_tags];
     for j in 0..num_physical_tags {
         physical_tags[j] = int_parser(input)?.1;
     }
@@ -90,7 +88,7 @@ where
     let (input, num_bounding_points) = size_t_parser(input)?;
     let num_bounding_points = num_bounding_points.to_usize().unwrap();
 
-    let mut point_tags = vec![IntT::zero(); num_bounding_points];
+    let mut point_tags = vec![I::zero(); num_bounding_points];
     for j in 0..num_bounding_points {
         point_tags[j] = int_parser(input)?.1;
     }
@@ -113,9 +111,9 @@ where
 
 fn parse_surface<
     'a,
-    SizeT: Unsigned + Integer + num::ToPrimitive,
-    IntT: Clone + Signed + Integer,
-    FloatT: Float,
+    U: MshUsizeT,
+    I: MshIntT,
+    F: MshFloatT,
     SizeTParser,
     IntParser,
     FloatParser,
@@ -125,11 +123,11 @@ fn parse_surface<
     int_parser: IntParser,
     double_parser: FloatParser,
     input: &'a [u8],
-) -> IResult<&'a [u8], Surface<IntT, FloatT>, E>
+) -> IResult<&'a [u8], Surface<I, F>, E>
 where
-    SizeTParser: Fn(&'a [u8]) -> IResult<&'a [u8], SizeT, E>,
-    IntParser: Fn(&'a [u8]) -> IResult<&'a [u8], IntT, E>,
-    FloatParser: Fn(&'a [u8]) -> IResult<&'a [u8], FloatT, E>,
+    SizeTParser: Fn(&'a [u8]) -> IResult<&'a [u8], U, E>,
+    IntParser: Fn(&'a [u8]) -> IResult<&'a [u8], I, E>,
+    FloatParser: Fn(&'a [u8]) -> IResult<&'a [u8], F, E>,
 {
     let (input, surface_tag) = int_parser(input)?;
 
@@ -143,7 +141,7 @@ where
     let (input, num_physical_tags) = size_t_parser(input)?;
     let num_physical_tags = num_physical_tags.to_usize().unwrap();
 
-    let mut physical_tags = vec![IntT::zero(); num_physical_tags];
+    let mut physical_tags = vec![I::zero(); num_physical_tags];
     for j in 0..num_physical_tags {
         physical_tags[j] = int_parser(input)?.1;
     }
@@ -151,7 +149,7 @@ where
     let (input, num_bounding_curves) = size_t_parser(input)?;
     let num_bounding_curves = num_bounding_curves.to_usize().unwrap();
 
-    let mut curve_tags = vec![IntT::zero(); num_bounding_curves];
+    let mut curve_tags = vec![I::zero(); num_bounding_curves];
     for j in 0..num_bounding_curves {
         curve_tags[j] = int_parser(input)?.1;
     }
@@ -174,9 +172,9 @@ where
 
 fn parse_volume<
     'a,
-    SizeT: Unsigned + Integer + num::ToPrimitive,
-    IntT: Clone + Signed + Integer,
-    FloatT: Float,
+    U: MshUsizeT,
+    I: MshIntT,
+    F: MshFloatT,
     SizeTParser,
     IntParser,
     FloatParser,
@@ -186,11 +184,11 @@ fn parse_volume<
     int_parser: IntParser,
     double_parser: FloatParser,
     input: &'a [u8],
-) -> IResult<&'a [u8], Volume<IntT, FloatT>, E>
+) -> IResult<&'a [u8], Volume<I, F>, E>
 where
-    SizeTParser: Fn(&'a [u8]) -> IResult<&'a [u8], SizeT, E>,
-    IntParser: Fn(&'a [u8]) -> IResult<&'a [u8], IntT, E>,
-    FloatParser: Fn(&'a [u8]) -> IResult<&'a [u8], FloatT, E>,
+    SizeTParser: Fn(&'a [u8]) -> IResult<&'a [u8], U, E>,
+    IntParser: Fn(&'a [u8]) -> IResult<&'a [u8], I, E>,
+    FloatParser: Fn(&'a [u8]) -> IResult<&'a [u8], F, E>,
 {
     let (input, volume_tag) = int_parser(input)?;
 
@@ -204,7 +202,7 @@ where
     let (input, num_physical_tags) = size_t_parser(input)?;
     let num_physical_tags = num_physical_tags.to_usize().unwrap();
 
-    let mut physical_tags = vec![IntT::zero(); num_physical_tags];
+    let mut physical_tags = vec![I::zero(); num_physical_tags];
     for j in 0..num_physical_tags {
         physical_tags[j] = int_parser(input)?.1;
     }
@@ -212,7 +210,7 @@ where
     let (input, num_bounding_surfaces) = size_t_parser(input)?;
     let num_bounding_surfaces = num_bounding_surfaces.to_usize().unwrap();
 
-    let mut surface_tags = vec![IntT::zero(); num_bounding_surfaces];
+    let mut surface_tags = vec![I::zero(); num_bounding_surfaces];
     for j in 0..num_bounding_surfaces {
         surface_tags[j] = int_parser(input)?.1;
     }

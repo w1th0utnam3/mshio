@@ -4,29 +4,41 @@ use std::hash::Hash;
 use nom::number::Endianness;
 use num::{Float, Integer, Signed, ToPrimitive, Unsigned};
 use num_derive::FromPrimitive;
+use num_traits::FromPrimitive;
+
+/// Super-trait for all purposes in the MSH parser that require `size_t` like types
+pub trait MshUsizeT: Unsigned + Integer + ToPrimitive + FromPrimitive + Clone + Hash {}
+/// Super-trait for all purposes in the MSH parser that require `int` like types
+pub trait MshIntT: Signed + Integer + ToPrimitive + FromPrimitive + Clone {}
+/// Super-trait for all purposes in the MSH parser that require `float` like types
+pub trait MshFloatT: Float + ToPrimitive + Clone {}
+
+impl<T: Unsigned + Integer + ToPrimitive + FromPrimitive + Clone + Hash> MshUsizeT for T {}
+impl<T: Signed + Integer + ToPrimitive + FromPrimitive + Clone> MshIntT for T {}
+impl<T: Float + ToPrimitive + Clone> MshFloatT for T {}
 
 /// A parsed MSH file containing mesh and header data
 ///
 /// Models MSH files after revision 4.1 described at
 /// [gmsh.info](http://gmsh.info/doc/texinfo/gmsh.html#MSH-file-format)
 #[derive(PartialEq, Debug)]
-pub struct MshFile<UsizeT, IntT, FloatT>
+pub struct MshFile<U, I, F>
 where
-    UsizeT: Unsigned + Integer + ToPrimitive + Hash,
-    IntT: Signed + Integer + ToPrimitive,
-    FloatT: Float + ToPrimitive,
+    U: MshUsizeT,
+    I: MshIntT,
+    F: MshFloatT,
 {
     /// Data extracted from the file format header
     pub header: MshHeader,
     /// Actual mesh data of the MSH file
-    pub data: MshData<UsizeT, IntT, FloatT>,
+    pub data: MshData<U, I, F>,
 }
 
-impl<UsizeT, IntT, FloatT> MshFile<UsizeT, IntT, FloatT>
+impl<U, I, F> MshFile<U, I, F>
 where
-    UsizeT: Unsigned + Integer + ToPrimitive + Hash,
-    IntT: Signed + Integer + ToPrimitive,
-    FloatT: Float + ToPrimitive,
+    U: MshUsizeT,
+    I: MshIntT,
+    F: MshFloatT,
 {
     /// Returns the total number of nodes in the MSH file
     pub fn total_node_count(&self) -> usize {
@@ -64,171 +76,171 @@ pub struct MshHeader {
 
 /// Mesh data of a
 #[derive(PartialEq, Debug)]
-pub struct MshData<UsizeT, IntT, FloatT>
+pub struct MshData<U, I, F>
 where
-    UsizeT: Unsigned + Integer + Hash,
-    IntT: Signed + Integer,
-    FloatT: Float,
+    U: MshUsizeT,
+    I: MshIntT,
+    F: MshFloatT,
 {
     /// Geometric entities of this mesh such as points, curves, etc. (if it contains entities)
-    pub entities: Option<Entities<IntT, FloatT>>,
+    pub entities: Option<Entities<I, F>>,
     /// Node data of this mesh (if it contains nodes)
-    pub nodes: Option<Nodes<UsizeT, IntT, FloatT>>,
+    pub nodes: Option<Nodes<U, I, F>>,
     /// Element data of this mesh (if it contains nodes)
-    pub elements: Option<Elements<UsizeT, IntT>>,
+    pub elements: Option<Elements<U, I>>,
 }
 
 /// Boundary representations of geometrical entities of the MSH file
 #[derive(PartialEq, Debug)]
-pub struct Entities<IntT, FloatT>
+pub struct Entities<I, F>
 where
-    IntT: Signed + Integer,
-    FloatT: Float,
+    I: MshIntT,
+    F: MshFloatT,
 {
-    pub points: Vec<Point<IntT, FloatT>>,
-    pub curves: Vec<Curve<IntT, FloatT>>,
-    pub surfaces: Vec<Surface<IntT, FloatT>>,
-    pub volumes: Vec<Volume<IntT, FloatT>>,
+    pub points: Vec<Point<I, F>>,
+    pub curves: Vec<Curve<I, F>>,
+    pub surfaces: Vec<Surface<I, F>>,
+    pub volumes: Vec<Volume<I, F>>,
 }
 
 /// A geometrical point entity
 #[derive(PartialEq, Debug)]
-pub struct Point<IntT, FloatT>
+pub struct Point<I, F>
 where
-    IntT: Signed + Integer,
-    FloatT: Float,
+    I: MshIntT,
+    F: MshFloatT,
 {
     /// The entity tag of this point
-    pub tag: IntT,
+    pub tag: I,
     /// X-coordinate of this point
-    pub x: FloatT,
+    pub x: F,
     /// Y-coordinate of this point
-    pub y: FloatT,
+    pub y: F,
     /// Z-coordinate of this point
-    pub z: FloatT,
+    pub z: F,
     /// Tags of physical groups this point belongs to
     ///
     /// This is currently unimplemented.
-    pub physical_tags: Vec<IntT>,
+    pub physical_tags: Vec<I>,
 }
 
 /// A geometrical curve entity and its boundary
 #[derive(PartialEq, Debug)]
-pub struct Curve<IntT, FloatT>
+pub struct Curve<I, F>
 where
-    IntT: Signed + Integer,
-    FloatT: Float,
+    I: MshIntT,
+    F: MshFloatT,
 {
     /// The entity tag of this curve
-    pub tag: IntT,
+    pub tag: I,
     /// Lower x-coordinate bound of this curve
-    pub min_x: FloatT,
+    pub min_x: F,
     /// Lower y-coordinate bound of this curve
-    pub min_y: FloatT,
+    pub min_y: F,
     /// Lower z-coordinate bound of this curve
-    pub min_z: FloatT,
+    pub min_z: F,
     /// Upper x-coordinate bound of this curve
-    pub max_x: FloatT,
+    pub max_x: F,
     /// Upper y-coordinate bound of this curve
-    pub max_y: FloatT,
+    pub max_y: F,
     /// Upper z-coordinate bound of this curve
-    pub max_z: FloatT,
+    pub max_z: F,
     /// Tags of physical groups this curve belongs to
     ///
     /// This is currently unimplemented.
-    pub physical_tags: Vec<IntT>,
+    pub physical_tags: Vec<I>,
     /// Tags of the curves's bounding points
-    pub point_tags: Vec<IntT>,
+    pub point_tags: Vec<I>,
 }
 
 /// A geometrical surface entity and its boundary
 #[derive(PartialEq, Debug)]
-pub struct Surface<IntT, FloatT>
+pub struct Surface<I, F>
 where
-    IntT: Signed + Integer,
-    FloatT: Float,
+    I: MshIntT,
+    F: MshFloatT,
 {
     /// The entity tag of this surface
-    pub tag: IntT,
+    pub tag: I,
     /// Lower x-coordinate bound of this surface
-    pub min_x: FloatT,
+    pub min_x: F,
     /// Lower y-coordinate bound of this surface
-    pub min_y: FloatT,
+    pub min_y: F,
     /// Lower z-coordinate bound of this surface
-    pub min_z: FloatT,
+    pub min_z: F,
     /// Upper x-coordinate bound of this surface
-    pub max_x: FloatT,
+    pub max_x: F,
     /// Upper y-coordinate bound of this surface
-    pub max_y: FloatT,
+    pub max_y: F,
     /// Upper z-coordinate bound of this surface
-    pub max_z: FloatT,
+    pub max_z: F,
     /// Tags of physical groups this surface belongs to
     ///
     /// This is currently unimplemented.
-    pub physical_tags: Vec<IntT>,
+    pub physical_tags: Vec<I>,
     /// Tags of the surface's bounding curves
-    pub curve_tags: Vec<IntT>,
+    pub curve_tags: Vec<I>,
 }
 
 /// A geometrical volume entity and its boundary
 #[derive(PartialEq, Debug)]
-pub struct Volume<IntT, FloatT>
+pub struct Volume<I, F>
 where
-    IntT: Signed + Integer,
-    FloatT: Float,
+    I: MshIntT,
+    F: MshFloatT,
 {
     /// The entity tag of this volume
-    pub tag: IntT,
+    pub tag: I,
     /// Lower x-coordinate bound of this volume
-    pub min_x: FloatT,
+    pub min_x: F,
     /// Lower y-coordinate bound of this volume
-    pub min_y: FloatT,
+    pub min_y: F,
     /// Lower z-coordinate bound of this volume
-    pub min_z: FloatT,
+    pub min_z: F,
     /// Upper x-coordinate bound of this volume
-    pub max_x: FloatT,
+    pub max_x: F,
     /// Upper y-coordinate bound of this volume
-    pub max_y: FloatT,
+    pub max_y: F,
     /// Upper z-coordinate bound of this volume
-    pub max_z: FloatT,
+    pub max_z: F,
     /// Tags of physical groups this volume belongs to
     ///
     /// This is currently unimplemented.
-    pub physical_tags: Vec<IntT>,
+    pub physical_tags: Vec<I>,
     /// Tags of the volumes's bounding surfaces
-    pub surface_tags: Vec<IntT>,
+    pub surface_tags: Vec<I>,
 }
 
 /// All node data of a mesh
 #[derive(PartialEq, Debug)]
-pub struct Nodes<UsizeT, IntT, FloatT>
+pub struct Nodes<U, I, F>
 where
-    UsizeT: Unsigned + Integer + Hash,
-    IntT: Signed + Integer,
-    FloatT: Float,
+    U: MshUsizeT,
+    I: MshIntT,
+    F: MshFloatT,
 {
     /// Total number of nodes across all node blocks
-    pub num_nodes: UsizeT,
+    pub num_nodes: U,
     /// The smallest node tag assigned to a node
-    pub min_node_tag: UsizeT,
+    pub min_node_tag: U,
     /// The largest node tag assigned to a node
-    pub max_node_tag: UsizeT,
+    pub max_node_tag: U,
     /// Blocks of nodes with shared properties
-    pub node_entities: Vec<NodeBlock<UsizeT, IntT, FloatT>>,
+    pub node_entities: Vec<NodeBlock<U, I, F>>,
 }
 
 /// A block of nodes
 #[derive(PartialEq, Debug)]
-pub struct NodeBlock<UsizeT, IntT, FloatT>
+pub struct NodeBlock<U, I, F>
 where
-    UsizeT: Unsigned + Integer + Hash,
-    IntT: Signed + Integer,
-    FloatT: Float,
+    U: MshUsizeT,
+    I: MshIntT,
+    F: MshFloatT,
 {
     /// The number of dimensions of nodes in this block
-    pub entity_dim: IntT,
+    pub entity_dim: I,
     /// The tag of the geometric entity this block of elements is associated to
-    pub entity_tag: IntT,
+    pub entity_tag: I,
     /// Whether this node entity provides parametric coordinates for its nodes
     ///
     /// This is currently unimplemented.
@@ -238,13 +250,13 @@ where
     /// Node tags (used to reference nodes from entities) can be non-sequential (i.e. sparse).
     /// This map is only present if the node tags of this block are actually sparse.
     /// Otherwise it is None.
-    pub node_tags: Option<HashMap<UsizeT, usize>>,
+    pub node_tags: Option<HashMap<U, usize>>,
     /// The nodes of this block
-    pub nodes: Vec<Node<FloatT>>,
+    pub nodes: Vec<Node<F>>,
     /// May contain parametric coordinates of the nodes
     ///
     /// This is currently unimplemented.
-    pub parametric_nodes: Option<Vec<Node<FloatT>>>,
+    pub parametric_nodes: Option<Vec<Node<F>>>,
 }
 
 /// Coordinates of a single node
@@ -252,46 +264,46 @@ where
 /// Note that only the components corresponding to the number of dimensions of the node's block
 /// may contain meaningful values.
 #[derive(PartialEq, Debug)]
-pub struct Node<FloatT>
+pub struct Node<F>
 where
-    FloatT: Float,
+    F: MshFloatT,
 {
     /// X-coordinate of the node
-    pub x: FloatT,
+    pub x: F,
     /// Y-coordinate of the node (if entity_dim > 1)
-    pub y: FloatT,
+    pub y: F,
     /// Z-coordinate of the node (if entity_dim > 2)
-    pub z: FloatT,
+    pub z: F,
 }
 
 /// All element data of a mesh
 #[derive(PartialEq, Debug)]
-pub struct Elements<UsizeT, IntT>
+pub struct Elements<U, I>
 where
-    UsizeT: Unsigned + Integer + Hash,
-    IntT: Signed + Integer,
+    U: MshUsizeT,
+    I: MshIntT,
 {
     /// Total number of elements across all element blocks
-    pub num_elements: UsizeT,
+    pub num_elements: U,
     /// The smallest element tag assigned to an element
-    pub min_element_tag: UsizeT,
+    pub min_element_tag: U,
     /// The largest element tag assigned to an element
-    pub max_element_tag: UsizeT,
+    pub max_element_tag: U,
     /// Blocks of elements with shared properties
-    pub element_entities: Vec<ElementBlock<UsizeT, IntT>>,
+    pub element_entities: Vec<ElementBlock<U, I>>,
 }
 
 /// A block of elements
 #[derive(PartialEq, Debug)]
-pub struct ElementBlock<UsizeT, IntT>
+pub struct ElementBlock<U, I>
 where
-    UsizeT: Unsigned + Integer + Hash,
-    IntT: Signed + Integer,
+    U: MshUsizeT,
+    I: MshIntT,
 {
     /// The number of dimensions of elements in this block
-    pub entity_dim: IntT,
+    pub entity_dim: I,
     /// The tag of the geometric entity this block of elements is associated to
-    pub entity_tag: IntT,
+    pub entity_tag: I,
     /// The type of all elements in this block
     pub element_type: ElementType,
     /// Maps the tag of each element to its linear index in this block
@@ -299,21 +311,21 @@ where
     /// Element tags (used to reference elements from entities) can be non-sequential (i.e. sparse).
     /// This map is only present if the element tags of this block are actually sparse.
     /// Otherwise it is None.
-    pub element_tags: Option<HashMap<UsizeT, usize>>,
+    pub element_tags: Option<HashMap<U, usize>>,
     /// The elements of this block
-    pub elements: Vec<Element<UsizeT>>,
+    pub elements: Vec<Element<U>>,
 }
 
 /// Data of one mesh element
 #[derive(PartialEq, Debug)]
-pub struct Element<UsizeT>
+pub struct Element<U>
 where
-    UsizeT: Unsigned + Integer,
+    U: Unsigned + Integer,
 {
     /// Tag of this element
-    pub element_tag: UsizeT,
+    pub element_tag: U,
     /// The tags of nodes associated to this element
-    pub nodes: Vec<UsizeT>,
+    pub nodes: Vec<U>,
 }
 
 /// Element types supported by the MSH file format
