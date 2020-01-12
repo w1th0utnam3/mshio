@@ -2,7 +2,6 @@ use nom::branch::alt;
 use nom::bytes::complete::{tag, take, take_while};
 use nom::error::{ErrorKind, ParseError};
 use nom::sequence::delimited;
-use nom::Err;
 use nom::{AsChar, IResult};
 
 /// Consumes the whole input
@@ -40,7 +39,7 @@ where
     if i.input_len() == 0 {
         Ok((i.clone(), i))
     } else {
-        Err(Err::Error(ParseError::from_error_kind(i, ErrorKind::Eof)))
+        Err(nom::Err::Error(ParseError::from_error_kind(i, ErrorKind::Eof)))
     }
 }
 

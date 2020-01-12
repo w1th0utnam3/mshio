@@ -1,12 +1,13 @@
-use std::convert::TryFrom;
+//! Parser for Gmsh mesh data of the MSH file format version 4.1
+
+use std::convert::{TryFrom, TryInto};
 use std::str;
 
 use nom::bytes::complete::tag;
 use nom::character::complete::{alpha0, char};
 use nom::combinator::peek;
-use nom::error::{context, ErrorKind, ParseError};
+use nom::error::{context, ErrorKind, ParseError, VerboseError};
 use nom::sequence::{delimited, preceded, terminated};
-use nom::Err;
 use nom::IResult;
 
 /// Contains all types that are used to represent parsed MSH files
@@ -23,10 +24,12 @@ use parsers::{
 // TODO: Implement parser for point entities
 // TODO: Implement parser for physical groups
 // TODO: Replace panics and unimplemented! calls with Err
-// TODO: Decide if nom types in the pub functions signature are ok
 // TODO: Check imports of num vs num_traits
-// TODO: Define UsizeT, IntT and FloatT traits at a central place
 // TODO: Review the passing of primitive parser functions as generic parameters (don't support Copy)
+
+// TODO: Add proper enum variants for custom error
+// TODO: Global static strings for error context
+// TODO: Map static string error context back to error enum variants
 
 /// Debug helper to view u8 slice as utf8 str and print it
 #[allow(dead_code)]
@@ -36,18 +39,24 @@ fn print_u8(text: &str, input: &[u8]) {
 
 /// Try to parse a MshFile from a slice of bytes
 impl<'a> TryFrom<&'a [u8]> for MshFile<usize, i32, f64> {
-    type Error = ();
+    type Error = MshParserError<&'a [u8]>;
 
     fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
-        match parse_msh_bytes::<()>(value) {
+        match private_parse_msh_bytes::<VerboseError<_>>(value) {
             Ok((_, file)) => Ok(file),
-            Err(_) => Err(()),
+            Err(e) => Err(e.into()),
         }
     }
 }
 
 /// Try to parse a MshFile from a slice of bytes
-pub fn parse_msh_bytes<'a, E: ParseError<&'a [u8]>>(
+pub fn parse_msh_bytes<'a>(
+    input: &'a [u8],
+) -> Result<MshFile<usize, i32, f64>, MshParserError<&'a [u8]>> {
+    input.try_into()
+}
+
+fn private_parse_msh_bytes<'a, E: ParseError<&'a [u8]>>(
     input: &'a [u8],
 ) -> IResult<&'a [u8], MshFile<usize, i32, f64>, E> {
     let (input, header) = parsers::parse_delimited_block(
@@ -134,7 +143,7 @@ pub fn parse_msh_bytes<'a, E: ParseError<&'a [u8]>>(
         // Check for invalid lines
         else {
             return context("Expected a section header", |i| {
-                Err(Err::Error(ParseError::from_error_kind(i, ErrorKind::Tag)))
+                Err(nom::Err::Error(ParseError::from_error_kind(i, ErrorKind::Tag)))
             })(input);
         }
     }

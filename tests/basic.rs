@@ -19,8 +19,8 @@ fn read_bytes(path: &str) -> Vec<u8> {
 
 /// Returns whether the supplied data can be parsed successfully as a MSH file
 fn msh_parses(msh: &[u8]) -> bool {
-    match mshio::parse_msh_bytes::<nom::error::VerboseError<_>>(msh) {
-        Ok((_, _)) => true,
+    match mshio::parse_msh_bytes(msh) {
+        Ok(_) => true,
         Err(err) => {
             println!("Error occured during parsing: {:?}", err);
             false
@@ -38,7 +38,7 @@ fn simple_bin_file() {
     let circle_2d_bin = read_bytes("tests\\circle_2d_bin.msh");
     assert!(msh_parses(&circle_2d_bin));
 
-    let (_, msh) = mshio::parse_msh_bytes::<()>(&circle_2d_bin).unwrap();
+    let msh = mshio::parse_msh_bytes(&circle_2d_bin).unwrap();
     assert_eq!(msh.total_node_count(), 25);
     assert_eq!(msh.total_element_count(), 20);
     assert!(msh
@@ -55,7 +55,7 @@ fn simple_ascii_file() {
     let circle_2d = read_bytes("tests\\circle_2d.msh");
     assert!(msh_parses(&circle_2d));
 
-    let (_, msh) = mshio::parse_msh_bytes::<()>(&circle_2d).unwrap();
+    let msh = mshio::parse_msh_bytes(&circle_2d).unwrap();
     assert_eq!(msh.total_node_count(), 25);
     assert_eq!(msh.total_element_count(), 20);
     assert!(msh
@@ -72,8 +72,8 @@ fn compare_simple_ascii_bin() {
     let circle_2d_bin_raw = read_bytes("tests\\circle_2d_bin.msh");
     let circle_2d_raw = read_bytes("tests\\circle_2d.msh");
 
-    let (_, msh_bin) = mshio::parse_msh_bytes::<()>(&circle_2d_bin_raw).unwrap();
-    let (_, msh_ascii) = mshio::parse_msh_bytes::<()>(&circle_2d_raw).unwrap();
+    let msh_bin = mshio::parse_msh_bytes(&circle_2d_bin_raw).unwrap();
+    let msh_ascii = mshio::parse_msh_bytes(&circle_2d_raw).unwrap();
 
     // Headers differ, but data should be the same
     assert_eq!(msh_bin.data, msh_ascii.data);
@@ -84,7 +84,7 @@ fn fine_bin_file() {
     let circle_2d_bin = read_bytes("tests\\circle_2d_fine_bin.msh");
     assert!(msh_parses(&circle_2d_bin));
 
-    let (_, msh) = mshio::parse_msh_bytes::<()>(&circle_2d_bin).unwrap();
+    let msh = mshio::parse_msh_bytes(&circle_2d_bin).unwrap();
     assert_eq!(msh.total_node_count(), 1313);
     assert_eq!(msh.total_element_count(), 1280);
     assert!(msh
@@ -101,7 +101,7 @@ fn t13_bin_file() {
     let msh_bin = read_bytes("tests\\t13_data.msh");
     assert!(msh_parses(&msh_bin));
 
-    let (_, msh) = mshio::parse_msh_bytes::<()>(&msh_bin).unwrap();
+    let msh = mshio::parse_msh_bytes(&msh_bin).unwrap();
     assert_eq!(msh.total_node_count(), 788);
     assert_eq!(msh.total_element_count(), 1864);
     assert!(msh
@@ -121,7 +121,7 @@ fn cylinder_bin_file() {
     let msh_bin = read_bytes("tests\\cylinder_3d.msh");
     assert!(msh_parses(&msh_bin));
 
-    let (_, msh) = mshio::parse_msh_bytes::<()>(&msh_bin).unwrap();
+    let msh = mshio::parse_msh_bytes(&msh_bin).unwrap();
     assert_eq!(msh.total_node_count(), 49602);
     assert_eq!(msh.total_element_count(), 9792);
     assert!(msh
@@ -174,7 +174,7 @@ fn coarse_bike_file() {
     let msh = read_bytes("tests\\bike_coarse.obj_linear.msh");
     assert!(msh_parses(&msh));
 
-    let (_, msh) = mshio::parse_msh_bytes::<()>(&msh).unwrap();
+    let msh = mshio::parse_msh_bytes(&msh).unwrap();
     assert_eq!(msh.total_node_count(), 52);
     assert_eq!(msh.total_element_count(), 54);
 }
@@ -184,7 +184,7 @@ fn fine_bike_file() {
     let msh = read_bytes("tests\\bike_original.obj_linear.msh");
     assert!(msh_parses(&msh));
 
-    let (_, msh) = mshio::parse_msh_bytes::<()>(&msh).unwrap();
+    let msh = mshio::parse_msh_bytes(&msh).unwrap();
     assert_eq!(msh.total_node_count(), 850);
     assert_eq!(msh.total_element_count(), 1292);
 }
@@ -194,7 +194,7 @@ fn fine_bike_curved_file() {
     let msh = read_bytes("tests\\bike_original.obj_curved.msh");
     assert!(msh_parses(&msh));
 
-    let (_, msh) = mshio::parse_msh_bytes::<()>(&msh).unwrap();
+    let msh = mshio::parse_msh_bytes(&msh).unwrap();
     assert_eq!(msh.total_node_count(), 2698);
     assert_eq!(msh.total_element_count(), 1292);
 }

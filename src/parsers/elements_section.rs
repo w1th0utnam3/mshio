@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use nom::error::{context, ErrorKind, ParseError};
 use nom::multi::count;
-use nom::Err;
 use nom::IResult;
 use num_traits::FromPrimitive;
 
@@ -66,7 +65,7 @@ where
     match ElementType::from_i32(element_type_raw) {
         Some(element_type) => Ok((input, element_type)),
         None => context("Unsupported element type found", |i| {
-            Err(Err::Error(ParseError::from_error_kind(i, ErrorKind::Tag)))
+            Err(nom::Err::Error(ParseError::from_error_kind(i, ErrorKind::Tag)))
         })(input),
     }
 }
@@ -99,7 +98,7 @@ where
         Ok(v) => v,
         Err(_) => {
             return context("Unsupported element type found", |i| {
-                Err(Err::Error(ParseError::from_error_kind(i, ErrorKind::Tag)))
+                Err(nom::Err::Error(ParseError::from_error_kind(i, ErrorKind::Tag)))
             })(input)
         }
     };
