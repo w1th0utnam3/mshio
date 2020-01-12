@@ -39,7 +39,10 @@ where
     if i.input_len() == 0 {
         Ok((i.clone(), i))
     } else {
-        Err(nom::Err::Error(ParseError::from_error_kind(i, ErrorKind::Eof)))
+        Err(nom::Err::Error(ParseError::from_error_kind(
+            i,
+            ErrorKind::Eof,
+        )))
     }
 }
 

@@ -20,7 +20,10 @@ pub(crate) fn parse_header_section<'a, E: ParseError<&'a [u8]>>(
 
     if version != 4.1 {
         return context("Only MSH file format version 4.1 is supported", |i| {
-            Err(nom::Err::Error(ParseError::from_error_kind(i, ErrorKind::Tag)))
+            Err(nom::Err::Error(ParseError::from_error_kind(
+                i,
+                ErrorKind::Tag,
+            )))
         })(input);
     }
 

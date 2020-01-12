@@ -7,7 +7,8 @@ use nom::number::complete as numbers;
 use nom::number::Endianness;
 use nom::IResult;
 
-use num::{Float, Integer, NumCast, Signed, Unsigned};
+use num::Integer;
+use num_traits::{Float, Integer, NumCast, Signed, Unsigned};
 
 use crate::parsers::ws;
 

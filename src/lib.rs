@@ -143,7 +143,10 @@ fn private_parse_msh_bytes<'a, E: ParseError<&'a [u8]>>(
         // Check for invalid lines
         else {
             return context("Expected a section header", |i| {
-                Err(nom::Err::Error(ParseError::from_error_kind(i, ErrorKind::Tag)))
+                Err(nom::Err::Error(ParseError::from_error_kind(
+                    i,
+                    ErrorKind::Tag,
+                )))
             })(input);
         }
     }

@@ -1,14 +1,15 @@
 use std::collections::HashMap;
-use std::hash::Hash;
 use std::error::Error;
-use std::fmt::{Display, Debug};
 use std::fmt;
+use std::fmt::{Debug, Display};
+use std::hash::Hash;
 
-use nom::number::Endianness;
 use nom::error::VerboseError;
+use nom::number::Endianness;
 
-use num::{Float, Integer, Signed, ToPrimitive, Unsigned, FromPrimitive};
+use num::Integer;
 use num_derive::FromPrimitive;
+use num_traits::{Float, FromPrimitive, Signed, ToPrimitive, Unsigned};
 
 /// Error type returned by the MSH parser if parsing fails without panic
 pub struct MshParserError<I> {
@@ -32,9 +33,7 @@ impl<I: Debug> Error for MshParserError<I> {}
 
 impl<I: Debug> From<nom::Err<VerboseError<I>>> for MshParserError<I> {
     fn from(error: nom::Err<VerboseError<I>>) -> Self {
-        MshParserError {
-            details: error
-        }
+        MshParserError { details: error }
     }
 }
 
