@@ -1,3 +1,4 @@
+use std::convert::TryFrom;
 use std::str;
 
 use nom::bytes::complete::tag;
@@ -28,6 +29,18 @@ use parsers::{
 #[allow(dead_code)]
 fn print_u8(text: &str, input: &[u8]) {
     println!("{}: '{}'", text, String::from_utf8_lossy(input));
+}
+
+/// Try to parse a MshFile from the given bytes array
+impl<'a> TryFrom<&'a [u8]> for MshFile<usize, i32, f64> {
+    type Error = ();
+
+    fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
+        match parse_msh_bytes::<()>(value) {
+            Ok((_, file)) => Ok(file),
+            Err(_) => Err(()),
+        }
+    }
 }
 
 pub fn parse_msh_bytes<'a, E: ParseError<&'a [u8]>>(
