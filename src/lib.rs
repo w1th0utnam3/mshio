@@ -38,6 +38,8 @@ fn print_u8(text: &str, input: &[u8]) {
 }
 
 /// Try to parse a MshFile from a slice of bytes
+///
+/// The input  can be the content of an ASCII or binary encoded MSH file of file format version 4.1.
 impl<'a> TryFrom<&'a [u8]> for MshFile<usize, i32, f64> {
     type Error = MshParserError<&'a [u8]>;
 
@@ -50,6 +52,8 @@ impl<'a> TryFrom<&'a [u8]> for MshFile<usize, i32, f64> {
 }
 
 /// Try to parse a MshFile from a slice of bytes
+///
+/// The input  can be the content of an ASCII or binary encoded MSH file of file format version 4.1.
 pub fn parse_msh_bytes<'a>(
     input: &'a [u8],
 ) -> Result<MshFile<usize, i32, f64>, MshParserError<&'a [u8]>> {

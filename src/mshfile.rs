@@ -13,7 +13,7 @@ use num_traits::{Float, FromPrimitive, Signed, ToPrimitive, Unsigned};
 
 /// Error type returned by the MSH parser if parsing fails without panic
 pub struct MshParserError<I> {
-    /// The internal error created by nom
+    /// The internal error returned by nom
     pub details: nom::Err<VerboseError<I>>,
 }
 
