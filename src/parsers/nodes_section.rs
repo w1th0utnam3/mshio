@@ -7,42 +7,48 @@ use nom::IResult;
 use crate::mshfile::{MshFloatT, MshHeader, MshIntT, MshUsizeT, Node, NodeBlock, Nodes};
 use crate::parsers::num_parsers;
 
-pub(crate) fn parse_node_section<'a, E: ParseError<&'a [u8]>>(
-    header: &MshHeader,
-    input: &'a [u8],
-) -> IResult<&'a [u8], Nodes<usize, i32, f64>, E> {
-    let size_t_parser = num_parsers::uint_parser::<usize, _>(header.size_t_size, header.endianness);
+pub(crate) fn parse_node_section<'a, 'b: 'a, E>(
+    header: &'a MshHeader,
+) -> impl Fn(&'b [u8]) -> IResult<&'b [u8], Nodes<usize, i32, f64>, E>
+where
+    E: ParseError<&'b [u8]>,
+{
+    let header = header.clone();
+    move |input| {
+        let size_t_parser =
+            num_parsers::uint_parser::<usize, _>(header.size_t_size, header.endianness);
 
-    let (input, num_entity_blocks) = size_t_parser(input)?;
-    let (input, num_nodes) = size_t_parser(input)?;
-    let (input, min_node_tag) = size_t_parser(input)?;
-    let (input, max_node_tag) = size_t_parser(input)?;
+        let (input, num_entity_blocks) = size_t_parser(input)?;
+        let (input, num_nodes) = size_t_parser(input)?;
+        let (input, min_node_tag) = size_t_parser(input)?;
+        let (input, max_node_tag) = size_t_parser(input)?;
 
-    let int_parser = num_parsers::int_parser::<i32, _>(header.int_size, header.endianness);
-    let double_parser = num_parsers::float_parser::<f64, _>(8, header.endianness);
+        let int_parser = num_parsers::int_parser::<i32, _>(header.int_size, header.endianness);
+        let double_parser = num_parsers::float_parser::<f64, _>(8, header.endianness);
 
-    let sparse_tags = if min_node_tag == 0 {
-        panic!("Node tag 0 is reserved for internal use");
-    } else if max_node_tag - min_node_tag > num_nodes - 1 {
-        true
-    } else {
-        false
-    };
+        let sparse_tags = if min_node_tag == 0 {
+            panic!("Node tag 0 is reserved for internal use");
+        } else if max_node_tag - min_node_tag > num_nodes - 1 {
+            true
+        } else {
+            false
+        };
 
-    let (input, node_entity_blocks) = count(
-        |i| parse_node_entity(size_t_parser, int_parser, double_parser, sparse_tags, i),
-        num_entity_blocks,
-    )(input)?;
+        let (input, node_entity_blocks) = count(
+            |i| parse_node_entity(size_t_parser, int_parser, double_parser, sparse_tags, i),
+            num_entity_blocks,
+        )(input)?;
 
-    Ok((
-        input,
-        Nodes {
-            num_nodes,
-            min_node_tag,
-            max_node_tag,
-            node_entities: node_entity_blocks,
-        },
-    ))
+        Ok((
+            input,
+            Nodes {
+                num_nodes,
+                min_node_tag,
+                max_node_tag,
+                node_entities: node_entity_blocks,
+            },
+        ))
+    }
 }
 
 fn parse_node_entity<

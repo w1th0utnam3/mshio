@@ -6,7 +6,7 @@ use std::str;
 use nom::bytes::complete::tag;
 use nom::character::complete::{alpha0, char};
 use nom::combinator::peek;
-use nom::error::{ErrorKind, ParseError, VerboseError};
+use nom::error::{context, ErrorKind, ParseError, VerboseError};
 use nom::sequence::{delimited, preceded, terminated};
 use nom::IResult;
 
@@ -18,7 +18,7 @@ pub mod mshfile;
 pub mod parsers;
 
 pub use error::MshParserError;
-use error::{error_strings, with_context};
+use error::{create_error, error_strings};
 pub use mshfile::*;
 use parsers::{br, take_sp};
 use parsers::{
@@ -28,7 +28,7 @@ use parsers::{
 // TODO: Implement parser for point entities
 // TODO: Implement parser for physical groups
 // TODO: Replace panics and unimplemented! calls with Err
-// TODO: Check imports of num vs num_traits
+// TODO: Add more context calls for all levels of parsers
 // TODO: Review the passing of primitive parser functions as generic parameters (don't support Copy)
 
 // TODO: Add proper enum variants for custom error
@@ -67,10 +67,13 @@ pub fn parse_msh_bytes<'a>(
 fn private_parse_msh_bytes<'a, E: ParseError<&'a [u8]>>(
     input: &'a [u8],
 ) -> IResult<&'a [u8], MshFile<usize, i32, f64>, E> {
-    let (input, header) = parsers::parse_delimited_block(
-        terminated(tag("$MeshFormat"), br),
-        terminated(tag("$EndMeshFormat"), br),
-        parse_header_section,
+    let (input, header) = context(
+        "MSH file header section",
+        parsers::parse_delimited_block(
+            terminated(tag("$MeshFormat"), br),
+            terminated(tag("$EndMeshFormat"), br),
+            context("MSH file header content", parse_header_section),
+        ),
     )(input)?;
 
     // Closure to detect a line with a section start tag
@@ -80,13 +83,13 @@ fn private_parse_msh_bytes<'a, E: ParseError<&'a [u8]>>(
 
     // Macro to apply a parser to a section delimited by start and end tags
     macro_rules! parse_section {
-        ($start_tag:expr, $end_tag:expr, $parser:expr, $input:expr) => {
+        ($start_tag:expr, $end_tag:expr, $parser:expr, $input:expr) => {{
             delimited(
                 delimited(take_sp, tag($start_tag), br),
                 $parser,
                 delimited(take_sp, tag($end_tag), take_sp),
             )($input)
-        };
+        }};
     }
 
     let mut entity_sections = Vec::new();
@@ -102,7 +105,7 @@ fn private_parse_msh_bytes<'a, E: ParseError<&'a [u8]>>(
             let (input_, entities) = parse_section!(
                 "$Entities",
                 "$EndEntities",
-                |i| parse_entity_section(&header, i),
+                |i| context("Entity section content", parse_entity_section(&header))(i),
                 input
             )?;
 
@@ -114,7 +117,7 @@ fn private_parse_msh_bytes<'a, E: ParseError<&'a [u8]>>(
             let (input_, nodes) = parse_section!(
                 "$Nodes",
                 "$EndNodes",
-                |i| parse_node_section(&header, i),
+                |i| context("Node section content", parse_node_section(&header))(i),
                 input
             )?;
 
@@ -126,7 +129,7 @@ fn private_parse_msh_bytes<'a, E: ParseError<&'a [u8]>>(
             let (input_, elements) = parse_section!(
                 "$Elements",
                 "$EndElements",
-                |i| parse_element_section(&header, i),
+                |i| context("Element section content", parse_element_section(&header))(i),
                 input
             )?;
 
@@ -150,7 +153,7 @@ fn private_parse_msh_bytes<'a, E: ParseError<&'a [u8]>>(
         }
         // Check for invalid lines
         else {
-            return with_context(error_strings::SECTION_HEADER_INVALID, ErrorKind::Tag)(input);
+            return create_error(error_strings::SECTION_HEADER_INVALID, ErrorKind::Tag)(input);
         }
     }
 

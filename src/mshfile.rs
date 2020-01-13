@@ -22,7 +22,7 @@ impl<T: Float + ToPrimitive + Clone> MshFloatT for T {}
 ///
 /// Models MSH files after revision 4.1 described at
 /// [gmsh.info](http://gmsh.info/doc/texinfo/gmsh.html#MSH-file-format)
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct MshFile<U, I, F>
 where
     U: MshUsizeT,
@@ -61,7 +61,7 @@ where
 }
 
 /// The header of a MSH file (irrelevant for most users)
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct MshHeader {
     /// File format version of the parsed MSH file
     pub version: f64,
@@ -76,7 +76,7 @@ pub struct MshHeader {
 }
 
 /// Mesh data of a
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct MshData<U, I, F>
 where
     U: MshUsizeT,
@@ -92,7 +92,7 @@ where
 }
 
 /// Boundary representations of geometrical entities of the MSH file
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Entities<I, F>
 where
     I: MshIntT,
@@ -105,7 +105,7 @@ where
 }
 
 /// A geometrical point entity
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Point<I, F>
 where
     I: MshIntT,
@@ -126,7 +126,7 @@ where
 }
 
 /// A geometrical curve entity and its boundary
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Curve<I, F>
 where
     I: MshIntT,
@@ -155,7 +155,7 @@ where
 }
 
 /// A geometrical surface entity and its boundary
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Surface<I, F>
 where
     I: MshIntT,
@@ -184,7 +184,7 @@ where
 }
 
 /// A geometrical volume entity and its boundary
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Volume<I, F>
 where
     I: MshIntT,
@@ -213,7 +213,7 @@ where
 }
 
 /// All node data of a mesh
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Nodes<U, I, F>
 where
     U: MshUsizeT,
@@ -231,7 +231,7 @@ where
 }
 
 /// A block of nodes
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct NodeBlock<U, I, F>
 where
     U: MshUsizeT,
@@ -264,7 +264,7 @@ where
 ///
 /// Note that only the components corresponding to the number of dimensions of the node's block
 /// may contain meaningful values.
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Node<F>
 where
     F: MshFloatT,
@@ -278,7 +278,7 @@ where
 }
 
 /// All element data of a mesh
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Elements<U, I>
 where
     U: MshUsizeT,
@@ -295,7 +295,7 @@ where
 }
 
 /// A block of elements
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct ElementBlock<U, I>
 where
     U: MshUsizeT,
@@ -318,7 +318,7 @@ where
 }
 
 /// Data of one mesh element
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Element<U>
 where
     U: Unsigned + Integer,

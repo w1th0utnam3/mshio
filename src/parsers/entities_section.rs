@@ -5,47 +5,53 @@ use nom::IResult;
 use crate::mshfile::{Curve, Entities, MshFloatT, MshHeader, MshIntT, MshUsizeT, Surface, Volume};
 use crate::parsers::num_parsers;
 
-pub(crate) fn parse_entity_section<'a, E: ParseError<&'a [u8]>>(
-    header: &MshHeader,
-    input: &'a [u8],
-) -> IResult<&'a [u8], Entities<i32, f64>, E> {
-    let size_t_parser = num_parsers::uint_parser::<usize, _>(header.size_t_size, header.endianness);
-    let (input, num_points) = size_t_parser(input)?;
-    let (input, num_curves) = size_t_parser(input)?;
-    let (input, num_surfaces) = size_t_parser(input)?;
-    let (input, num_volumes) = size_t_parser(input)?;
+pub(crate) fn parse_entity_section<'a, 'b: 'a, E>(
+    header: &'a MshHeader,
+) -> impl Fn(&'b [u8]) -> IResult<&'b [u8], Entities<i32, f64>, E>
+where
+    E: ParseError<&'b [u8]>,
+{
+    let header = header.clone();
+    move |input| {
+        let size_t_parser =
+            num_parsers::uint_parser::<usize, _>(header.size_t_size, header.endianness);
+        let (input, num_points) = size_t_parser(input)?;
+        let (input, num_curves) = size_t_parser(input)?;
+        let (input, num_surfaces) = size_t_parser(input)?;
+        let (input, num_volumes) = size_t_parser(input)?;
 
-    let int_parser = num_parsers::int_parser::<i32, _>(header.int_size, header.endianness);
-    let double_parser = num_parsers::float_parser::<f64, _>(8, header.endianness);
+        let int_parser = num_parsers::int_parser::<i32, _>(header.int_size, header.endianness);
+        let double_parser = num_parsers::float_parser::<f64, _>(8, header.endianness);
 
-    for _ in 0..num_points {
-        unimplemented!("Point entity reading not implemented")
+        for _ in 0..num_points {
+            unimplemented!("Point entity reading not implemented")
+        }
+
+        let (input, curves) = count(
+            |i| parse_curve(size_t_parser, int_parser, double_parser, i),
+            num_curves,
+        )(input)?;
+
+        let (input, surfaces) = count(
+            |i| parse_surface(size_t_parser, int_parser, double_parser, i),
+            num_surfaces,
+        )(input)?;
+
+        let (input, volumes) = count(
+            |i| parse_volume(size_t_parser, int_parser, double_parser, i),
+            num_volumes,
+        )(input)?;
+
+        Ok((
+            input,
+            Entities {
+                points: Vec::new(),
+                curves,
+                surfaces,
+                volumes,
+            },
+        ))
     }
-
-    let (input, curves) = count(
-        |i| parse_curve(size_t_parser, int_parser, double_parser, i),
-        num_curves,
-    )(input)?;
-
-    let (input, surfaces) = count(
-        |i| parse_surface(size_t_parser, int_parser, double_parser, i),
-        num_surfaces,
-    )(input)?;
-
-    let (input, volumes) = count(
-        |i| parse_volume(size_t_parser, int_parser, double_parser, i),
-        num_volumes,
-    )(input)?;
-
-    Ok((
-        input,
-        Entities {
-            points: Vec::new(),
-            curves,
-            surfaces,
-            volumes,
-        },
-    ))
 }
 
 fn parse_curve<

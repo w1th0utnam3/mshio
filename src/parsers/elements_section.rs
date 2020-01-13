@@ -5,48 +5,51 @@ use nom::multi::count;
 use nom::IResult;
 use num_traits::FromPrimitive;
 
-use crate::error::{error_strings, with_context};
+use crate::error::{create_error, error_strings};
 use crate::mshfile::{Element, ElementBlock, ElementType, Elements, MshHeader, MshIntT, MshUsizeT};
 use crate::parsers::num_parsers;
 
-pub(crate) fn parse_element_section<'a, E>(
-    header: &MshHeader,
-    input: &'a [u8],
-) -> IResult<&'a [u8], Elements<usize, i32>, E>
+pub(crate) fn parse_element_section<'a, 'b: 'a, E>(
+    header: &'a MshHeader,
+) -> impl Fn(&'b [u8]) -> IResult<&'b [u8], Elements<usize, i32>, E>
 where
-    E: ParseError<&'a [u8]>,
+    E: ParseError<&'b [u8]>,
 {
-    let size_t_parser = num_parsers::uint_parser::<usize, _>(header.size_t_size, header.endianness);
+    let header = header.clone();
+    move |input| {
+        let size_t_parser =
+            num_parsers::uint_parser::<usize, _>(header.size_t_size, header.endianness);
 
-    let (input, num_entity_blocks) = size_t_parser(input)?;
-    let (input, num_elements) = size_t_parser(input)?;
-    let (input, min_element_tag) = size_t_parser(input)?;
-    let (input, max_element_tag) = size_t_parser(input)?;
+        let (input, num_entity_blocks) = size_t_parser(input)?;
+        let (input, num_elements) = size_t_parser(input)?;
+        let (input, min_element_tag) = size_t_parser(input)?;
+        let (input, max_element_tag) = size_t_parser(input)?;
 
-    let int_parser = num_parsers::int_parser::<i32, _>(header.int_size, header.endianness);
+        let int_parser = num_parsers::int_parser::<i32, _>(header.int_size, header.endianness);
 
-    let sparse_tags = if min_element_tag == 0 {
-        panic!("Element tag 0 is reserved for internal use");
-    } else if max_element_tag - min_element_tag > num_elements - 1 {
-        true
-    } else {
-        false
-    };
+        let sparse_tags = if min_element_tag == 0 {
+            panic!("Element tag 0 is reserved for internal use");
+        } else if max_element_tag - min_element_tag > num_elements - 1 {
+            true
+        } else {
+            false
+        };
 
-    let (input, element_entity_blocks) = count(
-        |i| parse_element_entity(size_t_parser, int_parser, sparse_tags, i),
-        num_entity_blocks,
-    )(input)?;
+        let (input, element_entity_blocks) = count(
+            |i| parse_element_entity(size_t_parser, int_parser, sparse_tags, i),
+            num_entity_blocks,
+        )(input)?;
 
-    Ok((
-        input,
-        Elements {
-            num_elements,
-            min_element_tag,
-            max_element_tag,
-            element_entities: element_entity_blocks,
-        },
-    ))
+        Ok((
+            input,
+            Elements {
+                num_elements,
+                min_element_tag,
+                max_element_tag,
+                element_entities: element_entity_blocks,
+            },
+        ))
+    }
 }
 
 fn parse_element_type<'a, I, IntParser, E>(
@@ -65,7 +68,7 @@ where
 
     match ElementType::from_i32(element_type_raw) {
         Some(element_type) => Ok((input, element_type)),
-        None => with_context(error_strings::ELEMENT_UNKNOWN, ErrorKind::Tag)(input),
+        None => create_error(error_strings::ELEMENT_UNKNOWN, ErrorKind::Tag)(input),
     }
 }
 
@@ -96,7 +99,7 @@ where
     let num_nodes = match element_type.nodes() {
         Ok(v) => v,
         Err(_) => {
-            return with_context(error_strings::ELEMENT_NUM_NODES_UNKNOWN, ErrorKind::Tag)(input);
+            return create_error(error_strings::ELEMENT_NUM_NODES_UNKNOWN, ErrorKind::Tag)(input);
         }
     };
 

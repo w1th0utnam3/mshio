@@ -15,8 +15,8 @@ pub(crate) mod error_strings {
         "Unimplemented: The number of nodes for an element encountered in the MSH file is unknown.";
 }
 
-/// Creates a nom ParseError with a context message
-pub(crate) fn with_context<I: Clone, E: ParseError<I>, O>(
+/// Creates a nom ParseError with a context message without invoking another parser
+pub(crate) fn create_error<I: Clone, E: ParseError<I>, O>(
     context_msg: &'static str,
     kind: ErrorKind,
 ) -> impl Fn(I) -> IResult<I, O, E> {
