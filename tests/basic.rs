@@ -22,7 +22,7 @@ fn msh_parses(msh: &[u8]) -> bool {
     match mshio::parse_msh_bytes(msh) {
         Ok(_) => true,
         Err(err) => {
-            println!("Error occured during parsing: {:?}", err);
+            println!("Error: {}", err);
             false
         }
     }

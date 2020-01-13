@@ -2,7 +2,7 @@ use std::error::Error;
 use std::fmt;
 use std::fmt::{Debug, Display};
 
-use nom::error::{context, ErrorKind, ParseError, VerboseError};
+use nom::error::{context, ErrorKind, ParseError, VerboseError, VerboseErrorKind};
 use nom::IResult;
 
 /// Contains error message strings used in the library
@@ -39,12 +39,41 @@ impl<I: Debug> Debug for MshParserError<I> {
 
 impl<I: Debug> Display for MshParserError<I> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "MshParserError({:?})", self.details)
+        match &self.details {
+            nom::Err::Error(ve) | nom::Err::Failure(ve) => {
+                if ve.errors.len() > 2 {
+                    write!(f, "During parsing...\n")?;
+                    for (_, ek) in ve.errors[2..].iter().rev() {
+                        if let VerboseErrorKind::Context(c) = ek {
+                            write!(f, "\tin {},\n", c)?;
+                        }
+                    }
+                    write!(f, "an error occured: ")?;
+                    if let VerboseErrorKind::Context(c) = ve.errors[1].1 {
+                        write!(f, "{}", c)?;
+                    } else {
+                        write!(f, "Unknown error.")?;
+                    }
+                    Ok(())
+                } else if ve.errors.len() == 2 {
+                    write!(f, "During parsing an error occured: ")?;
+                    if let VerboseErrorKind::Context(c) = ve.errors[1].1 {
+                        write!(f, "{}", c)
+                    } else {
+                        write!(f, "Unknown error")
+                    }
+                } else {
+                    write!(f, "Unknown error")
+                }
+            }
+            _ => write!(f, "Unknown error"),
+        }
     }
 }
 
 impl<I: Debug> Error for MshParserError<I> {}
 
+/// Convert a nom VerboseError to MshParserError
 impl<I: Debug> From<nom::Err<VerboseError<I>>> for MshParserError<I> {
     fn from(error: nom::Err<VerboseError<I>>) -> Self {
         MshParserError { details: error }
