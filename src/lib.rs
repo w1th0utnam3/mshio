@@ -6,19 +6,20 @@ use std::str;
 use nom::bytes::complete::tag;
 use nom::character::complete::{alpha0, char};
 use nom::combinator::peek;
-use nom::error::{context, ErrorKind, ParseError, VerboseError};
+use nom::error::{ErrorKind, ParseError, VerboseError};
 use nom::sequence::{delimited, preceded, terminated};
 use nom::IResult;
 
-/// Contains all types that are used to represent parsed MSH files
-pub mod mshfile;
 /// Error handling components of the parser
 pub mod error;
+/// Contains all types that are used to represent parsed MSH files
+pub mod mshfile;
 /// Parser utility functions used by this MSH parser (may be private in the future)
 pub mod parsers;
 
-pub use mshfile::*;
 pub use error::MshParserError;
+use error::{error_strings, with_context};
+pub use mshfile::*;
 use parsers::{br, take_sp};
 use parsers::{
     parse_element_section, parse_entity_section, parse_header_section, parse_node_section,
@@ -149,12 +150,7 @@ fn private_parse_msh_bytes<'a, E: ParseError<&'a [u8]>>(
         }
         // Check for invalid lines
         else {
-            return context("Expected a section header", |i| {
-                Err(nom::Err::Error(ParseError::from_error_kind(
-                    i,
-                    ErrorKind::Tag,
-                )))
-            })(input);
+            return with_context(error_strings::SECTION_HEADER_INVALID, ErrorKind::Tag)(input);
         }
     }
 

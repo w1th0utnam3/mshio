@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 
-use nom::error::{context, ErrorKind, ParseError};
+use nom::error::{ErrorKind, ParseError};
 use nom::multi::count;
 use nom::IResult;
 use num_traits::FromPrimitive;
 
+use crate::error::{error_strings, with_context};
 use crate::mshfile::{Element, ElementBlock, ElementType, Elements, MshHeader, MshIntT, MshUsizeT};
 use crate::parsers::num_parsers;
 
@@ -64,12 +65,7 @@ where
 
     match ElementType::from_i32(element_type_raw) {
         Some(element_type) => Ok((input, element_type)),
-        None => context("Unsupported element type found", |i| {
-            Err(nom::Err::Error(ParseError::from_error_kind(
-                i,
-                ErrorKind::Tag,
-            )))
-        })(input),
+        None => with_context(error_strings::ELEMENT_UNKNOWN, ErrorKind::Tag)(input),
     }
 }
 
@@ -100,12 +96,7 @@ where
     let num_nodes = match element_type.nodes() {
         Ok(v) => v,
         Err(_) => {
-            return context("Unsupported element type found", |i| {
-                Err(nom::Err::Error(ParseError::from_error_kind(
-                    i,
-                    ErrorKind::Tag,
-                )))
-            })(input)
+            return with_context(error_strings::ELEMENT_NUM_NODES_UNKNOWN, ErrorKind::Tag)(input);
         }
     };
 
