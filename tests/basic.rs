@@ -35,7 +35,7 @@ fn does_nothing() {
 
 #[test]
 fn simple_bin_file() {
-    let circle_2d_bin = read_bytes("tests\\circle_2d_bin.msh");
+    let circle_2d_bin = read_bytes("tests/circle_2d_bin.msh");
     assert!(msh_parses(&circle_2d_bin));
 
     let msh = mshio::parse_msh_bytes(&circle_2d_bin).unwrap();
@@ -52,7 +52,7 @@ fn simple_bin_file() {
 
 #[test]
 fn simple_ascii_file() {
-    let circle_2d = read_bytes("tests\\circle_2d.msh");
+    let circle_2d = read_bytes("tests/circle_2d.msh");
     assert!(msh_parses(&circle_2d));
 
     let msh = mshio::parse_msh_bytes(&circle_2d).unwrap();
@@ -69,8 +69,8 @@ fn simple_ascii_file() {
 
 #[test]
 fn compare_simple_ascii_bin() {
-    let circle_2d_bin_raw = read_bytes("tests\\circle_2d_bin.msh");
-    let circle_2d_raw = read_bytes("tests\\circle_2d.msh");
+    let circle_2d_bin_raw = read_bytes("tests/circle_2d_bin.msh");
+    let circle_2d_raw = read_bytes("tests/circle_2d.msh");
 
     let msh_bin = mshio::parse_msh_bytes(&circle_2d_bin_raw).unwrap();
     let msh_ascii = mshio::parse_msh_bytes(&circle_2d_raw).unwrap();
@@ -81,7 +81,7 @@ fn compare_simple_ascii_bin() {
 
 #[test]
 fn fine_bin_file() {
-    let circle_2d_bin = read_bytes("tests\\circle_2d_fine_bin.msh");
+    let circle_2d_bin = read_bytes("tests/circle_2d_fine_bin.msh");
     assert!(msh_parses(&circle_2d_bin));
 
     let msh = mshio::parse_msh_bytes(&circle_2d_bin).unwrap();
@@ -98,7 +98,7 @@ fn fine_bin_file() {
 
 #[test]
 fn t13_bin_file() {
-    let msh_bin = read_bytes("tests\\t13_data.msh");
+    let msh_bin = read_bytes("tests/t13_data.msh");
     assert!(msh_parses(&msh_bin));
 
     let msh = mshio::parse_msh_bytes(&msh_bin).unwrap();
@@ -118,7 +118,7 @@ fn t13_bin_file() {
 
 #[test]
 fn cylinder_bin_file() {
-    let msh_bin = read_bytes("tests\\cylinder_3d.msh");
+    let msh_bin = read_bytes("tests/cylinder_3d.msh");
     assert!(msh_parses(&msh_bin));
 
     let msh = mshio::parse_msh_bytes(&msh_bin).unwrap();
@@ -165,13 +165,13 @@ Hello
 
 #[test]
 fn old_msh_version() {
-    let msh = read_bytes("tests\\old_msh_version.msh");
+    let msh = read_bytes("tests/old_msh_version.msh");
     assert!(!msh_parses(&msh));
 }
 
 #[test]
 fn coarse_bike_file() {
-    let msh = read_bytes("tests\\bike_coarse.obj_linear.msh");
+    let msh = read_bytes("tests/bike_coarse.obj_linear.msh");
     assert!(msh_parses(&msh));
 
     let msh = mshio::parse_msh_bytes(&msh).unwrap();
@@ -181,7 +181,7 @@ fn coarse_bike_file() {
 
 #[test]
 fn fine_bike_file() {
-    let msh = read_bytes("tests\\bike_original.obj_linear.msh");
+    let msh = read_bytes("tests/bike_original.obj_linear.msh");
     assert!(msh_parses(&msh));
 
     let msh = mshio::parse_msh_bytes(&msh).unwrap();
@@ -191,7 +191,7 @@ fn fine_bike_file() {
 
 #[test]
 fn fine_bike_curved_file() {
-    let msh = read_bytes("tests\\bike_original.obj_curved.msh");
+    let msh = read_bytes("tests/bike_original.obj_curved.msh");
     assert!(msh_parses(&msh));
 
     let msh = mshio::parse_msh_bytes(&msh).unwrap();
