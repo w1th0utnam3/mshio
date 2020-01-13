@@ -1,41 +1,11 @@
 use std::collections::HashMap;
-use std::error::Error;
-use std::fmt;
-use std::fmt::{Debug, Display};
 use std::hash::Hash;
 
-use nom::error::VerboseError;
 use nom::number::Endianness;
 
 use num::Integer;
 use num_derive::FromPrimitive;
 use num_traits::{Float, FromPrimitive, Signed, ToPrimitive, Unsigned};
-
-/// Error type returned by the MSH parser if parsing fails without panic
-pub struct MshParserError<I> {
-    /// The internal error returned by nom
-    pub details: nom::Err<VerboseError<I>>,
-}
-
-impl<I: Debug> Debug for MshParserError<I> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "MshParserError({:?})", self.details)
-    }
-}
-
-impl<I: Debug> Display for MshParserError<I> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "MshParserError({:?})", self.details)
-    }
-}
-
-impl<I: Debug> Error for MshParserError<I> {}
-
-impl<I: Debug> From<nom::Err<VerboseError<I>>> for MshParserError<I> {
-    fn from(error: nom::Err<VerboseError<I>>) -> Self {
-        MshParserError { details: error }
-    }
-}
 
 /// Super-trait for all purposes in the MSH parser that require `size_t` like types
 pub trait MshUsizeT: Unsigned + Integer + ToPrimitive + FromPrimitive + Clone + Hash {}

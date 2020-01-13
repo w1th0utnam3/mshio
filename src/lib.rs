@@ -12,10 +12,13 @@ use nom::IResult;
 
 /// Contains all types that are used to represent parsed MSH files
 pub mod mshfile;
+/// Error handling components of the parser
+pub mod error;
 /// Parser utility functions used by this MSH parser (may be private in the future)
 pub mod parsers;
 
 pub use mshfile::*;
+pub use error::MshParserError;
 use parsers::{br, take_sp};
 use parsers::{
     parse_element_section, parse_entity_section, parse_header_section, parse_node_section,
