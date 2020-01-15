@@ -41,13 +41,10 @@ fn simple_bin_file() {
     let msh = mshio::parse_msh_bytes(&circle_2d_bin).unwrap();
     assert_eq!(msh.total_node_count(), 25);
     assert_eq!(msh.total_element_count(), 20);
-    assert!(msh
-        .data
-        .elements
-        .unwrap()
-        .element_entities
-        .iter()
-        .all(|elem_entity| elem_entity.element_type == ElementType::Qua4));
+
+    let element_types = msh.count_element_types();
+    assert_eq!(element_types.len(), 1);
+    assert_eq!(element_types.get(&ElementType::Qua4), Some(&20));
 }
 
 #[test]
@@ -58,13 +55,10 @@ fn simple_ascii_file() {
     let msh = mshio::parse_msh_bytes(&circle_2d).unwrap();
     assert_eq!(msh.total_node_count(), 25);
     assert_eq!(msh.total_element_count(), 20);
-    assert!(msh
-        .data
-        .elements
-        .unwrap()
-        .element_entities
-        .iter()
-        .all(|elem_entity| elem_entity.element_type == ElementType::Qua4));
+
+    let element_types = msh.count_element_types();
+    assert_eq!(element_types.len(), 1);
+    assert_eq!(element_types.get(&ElementType::Qua4), Some(&20));
 }
 
 #[test]
@@ -87,13 +81,10 @@ fn fine_bin_file() {
     let msh = mshio::parse_msh_bytes(&circle_2d_bin).unwrap();
     assert_eq!(msh.total_node_count(), 1313);
     assert_eq!(msh.total_element_count(), 1280);
-    assert!(msh
-        .data
-        .elements
-        .unwrap()
-        .element_entities
-        .iter()
-        .all(|elem_entity| elem_entity.element_type == ElementType::Qua4));
+
+    let element_types = msh.count_element_types();
+    assert_eq!(element_types.len(), 1);
+    assert_eq!(element_types.get(&ElementType::Qua4), Some(&1280));
 }
 
 #[test]
@@ -104,16 +95,11 @@ fn t13_bin_file() {
     let msh = mshio::parse_msh_bytes(&msh_bin).unwrap();
     assert_eq!(msh.total_node_count(), 788);
     assert_eq!(msh.total_element_count(), 1864);
-    assert!(msh
-        .data
-        .elements
-        .unwrap()
-        .element_entities
-        .iter()
-        .all(|elem_entity| {
-            elem_entity.element_type == ElementType::Lin2
-                || elem_entity.element_type == ElementType::Tri3
-        }));
+
+    let element_types = msh.count_element_types();
+    assert_eq!(element_types.len(), 2);
+    assert_eq!(element_types.get(&ElementType::Lin2), Some(&284));
+    assert_eq!(element_types.get(&ElementType::Tri3), Some(&1580));
 }
 
 #[test]
@@ -124,13 +110,10 @@ fn cylinder_bin_file() {
     let msh = mshio::parse_msh_bytes(&msh_bin).unwrap();
     assert_eq!(msh.total_node_count(), 49602);
     assert_eq!(msh.total_element_count(), 9792);
-    assert!(msh
-        .data
-        .elements
-        .unwrap()
-        .element_entities
-        .iter()
-        .all(|elem_entity| elem_entity.element_type == ElementType::Tet20));
+
+    let element_types = msh.count_element_types();
+    assert_eq!(element_types.len(), 1);
+    assert_eq!(element_types.get(&ElementType::Tet20), Some(&9792));
 }
 
 #[test]
@@ -177,6 +160,10 @@ fn coarse_bike_file() {
     let msh = mshio::parse_msh_bytes(&msh).unwrap();
     assert_eq!(msh.total_node_count(), 52);
     assert_eq!(msh.total_element_count(), 54);
+
+    let element_types = msh.count_element_types();
+    assert_eq!(element_types.len(), 1);
+    assert_eq!(element_types.get(&ElementType::Tri3), Some(&54));
 }
 
 #[test]
@@ -187,6 +174,10 @@ fn fine_bike_file() {
     let msh = mshio::parse_msh_bytes(&msh).unwrap();
     assert_eq!(msh.total_node_count(), 850);
     assert_eq!(msh.total_element_count(), 1292);
+
+    let element_types = msh.count_element_types();
+    assert_eq!(element_types.len(), 1);
+    assert_eq!(element_types.get(&ElementType::Tri3), Some(&1292));
 }
 
 #[test]
@@ -197,4 +188,9 @@ fn fine_bike_curved_file() {
     let msh = mshio::parse_msh_bytes(&msh).unwrap();
     assert_eq!(msh.total_node_count(), 2698);
     assert_eq!(msh.total_element_count(), 1292);
+
+    let element_types = msh.count_element_types();
+    assert_eq!(element_types.len(), 2);
+    assert_eq!(element_types.get(&ElementType::Tri3), Some(&1028));
+    assert_eq!(element_types.get(&ElementType::Tri10), Some(&264));
 }

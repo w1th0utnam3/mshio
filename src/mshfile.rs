@@ -22,7 +22,7 @@ impl<T: Float + ToPrimitive + Clone> MshFloatT for T {}
 ///
 /// Models MSH files after revision 4.1 described at
 /// [gmsh.info](http://gmsh.info/doc/texinfo/gmsh.html#MSH-file-format)
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct MshFile<U, I, F>
 where
     U: MshUsizeT,
@@ -43,7 +43,7 @@ where
 {
     /// Returns the total number of nodes in the MSH file
     pub fn total_node_count(&self) -> usize {
-        if let Some(nodes) = self.data.nodes.as_ref() {
+        if let Some(nodes) = &self.data.nodes {
             nodes.num_nodes.to_usize().unwrap()
         } else {
             0
@@ -52,16 +52,27 @@ where
 
     /// Returns the total number of elements in the MSH file
     pub fn total_element_count(&self) -> usize {
-        if let Some(elements) = self.data.elements.as_ref() {
+        if let Some(elements) = &self.data.elements {
             elements.num_elements.to_usize().unwrap()
         } else {
             0
         }
     }
+
+    pub fn count_element_types(&self) -> HashMap<ElementType, usize> {
+        let mut element_types = HashMap::new();
+        if let Some(elements) = &self.data.elements {
+            for element_block in &elements.element_entities {
+                let counter = element_types.entry(element_block.element_type).or_insert(0);
+                *counter += element_block.elements.len();
+            }
+        }
+        element_types
+    }
 }
 
 /// The header of a MSH file (irrelevant for most users)
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct MshHeader {
     /// File format version of the parsed MSH file
     pub version: f64,
@@ -76,7 +87,7 @@ pub struct MshHeader {
 }
 
 /// Mesh data of a
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct MshData<U, I, F>
 where
     U: MshUsizeT,
@@ -92,7 +103,7 @@ where
 }
 
 /// Boundary representations of geometrical entities of the MSH file
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Entities<I, F>
 where
     I: MshIntT,
@@ -105,7 +116,7 @@ where
 }
 
 /// A geometrical point entity
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Point<I, F>
 where
     I: MshIntT,
@@ -126,7 +137,7 @@ where
 }
 
 /// A geometrical curve entity and its boundary
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Curve<I, F>
 where
     I: MshIntT,
@@ -155,7 +166,7 @@ where
 }
 
 /// A geometrical surface entity and its boundary
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Surface<I, F>
 where
     I: MshIntT,
@@ -184,7 +195,7 @@ where
 }
 
 /// A geometrical volume entity and its boundary
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Volume<I, F>
 where
     I: MshIntT,
@@ -213,7 +224,7 @@ where
 }
 
 /// All node data of a mesh
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Nodes<U, I, F>
 where
     U: MshUsizeT,
@@ -231,7 +242,7 @@ where
 }
 
 /// A block of nodes
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct NodeBlock<U, I, F>
 where
     U: MshUsizeT,
@@ -264,7 +275,7 @@ where
 ///
 /// Note that only the components corresponding to the number of dimensions of the node's block
 /// may contain meaningful values.
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Node<F>
 where
     F: MshFloatT,
@@ -278,7 +289,7 @@ where
 }
 
 /// All element data of a mesh
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Elements<U, I>
 where
     U: MshUsizeT,
@@ -295,7 +306,7 @@ where
 }
 
 /// A block of elements
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ElementBlock<U, I>
 where
     U: MshUsizeT,
@@ -318,7 +329,7 @@ where
 }
 
 /// Data of one mesh element
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Element<U>
 where
     U: Unsigned + Integer,
@@ -335,11 +346,15 @@ where
 /// ```
 /// use mshio::mshfile::ElementType;
 /// use num_traits::FromPrimitive;
+/// use nom::lib::std::collections::HashMap;
+///
+/// assert_eq!(ElementType::from_u8(1).unwrap(), ElementType::Lin2);
 /// assert_eq!(ElementType::from_u8(4).unwrap(), ElementType::Tet4);
 /// assert!(ElementType::from_u8(0).is_none());
 /// assert!(ElementType::from_u8(141).is_none());
+/// let elems: HashMap<_,_> = vec![(ElementType::Tet4, 2),(ElementType::Tri3, 10)].into_iter().collect();
 /// ```
-#[derive(Copy, Clone, PartialEq, Debug, FromPrimitive)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, FromPrimitive, Hash)]
 pub enum ElementType {
     Lin2 = 1,
     Tri3 = 2,
