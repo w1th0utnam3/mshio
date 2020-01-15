@@ -46,7 +46,7 @@ where
                 num_elements,
                 min_element_tag,
                 max_element_tag,
-                element_entities: element_entity_blocks,
+                element_blocks: element_entity_blocks,
             },
         ))
     }

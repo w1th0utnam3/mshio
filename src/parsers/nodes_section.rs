@@ -45,7 +45,7 @@ where
                 num_nodes,
                 min_node_tag,
                 max_node_tag,
-                node_entities: node_entity_blocks,
+                node_blocks: node_entity_blocks,
             },
         ))
     }

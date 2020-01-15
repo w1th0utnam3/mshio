@@ -62,7 +62,7 @@ where
     pub fn count_element_types(&self) -> HashMap<ElementType, usize> {
         let mut element_types = HashMap::new();
         if let Some(elements) = &self.data.elements {
-            for element_block in &elements.element_entities {
+            for element_block in &elements.element_blocks {
                 let counter = element_types.entry(element_block.element_type).or_insert(0);
                 *counter += element_block.elements.len();
             }
@@ -238,7 +238,7 @@ where
     /// The largest node tag assigned to a node
     pub max_node_tag: U,
     /// Blocks of nodes with shared properties
-    pub node_entities: Vec<NodeBlock<U, I, F>>,
+    pub node_blocks: Vec<NodeBlock<U, I, F>>,
 }
 
 /// A block of nodes
@@ -302,7 +302,7 @@ where
     /// The largest element tag assigned to an element
     pub max_element_tag: U,
     /// Blocks of elements with shared properties
-    pub element_entities: Vec<ElementBlock<U, I>>,
+    pub element_blocks: Vec<ElementBlock<U, I>>,
 }
 
 /// A block of elements
