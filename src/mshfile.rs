@@ -41,6 +41,42 @@ where
     I: MshIntT,
     F: MshFloatT,
 {
+    /// Returns the total number of point entities in the MSH file
+    pub fn point_count(&self) -> usize {
+        if let Some(entities) = &self.data.entities {
+            entities.points.len()
+        } else {
+            0
+        }
+    }
+
+    /// Returns the total number of curve entities in the MSH file
+    pub fn curve_count(&self) -> usize {
+        if let Some(entities) = &self.data.entities {
+            entities.curves.len()
+        } else {
+            0
+        }
+    }
+
+    /// Returns the total number of surface entities in the MSH file
+    pub fn surface_count(&self) -> usize {
+        if let Some(entities) = &self.data.entities {
+            entities.surfaces.len()
+        } else {
+            0
+        }
+    }
+
+    /// Returns the total number of volume entities in the MSH file
+    pub fn volume_count(&self) -> usize {
+        if let Some(entities) = &self.data.entities {
+            entities.volumes.len()
+        } else {
+            0
+        }
+    }
+
     /// Returns the total number of nodes in the MSH file
     pub fn total_node_count(&self) -> usize {
         if let Some(nodes) = &self.data.nodes {

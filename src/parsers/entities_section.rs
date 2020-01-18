@@ -1,8 +1,10 @@
-use nom::error::ParseError;
+use nom::error::{context, ParseError};
 use nom::multi::count;
 use nom::IResult;
 
-use crate::mshfile::{Curve, Entities, MshFloatT, MshHeader, MshIntT, MshUsizeT, Surface, Volume};
+use crate::mshfile::{
+    Curve, Entities, MshFloatT, MshHeader, MshIntT, MshUsizeT, Point, Surface, Volume,
+};
 use crate::parsers::num_parsers;
 
 pub(crate) fn parse_entity_section<'a, 'b: 'a, E>(
@@ -23,35 +25,94 @@ where
         let int_parser = num_parsers::int_parser::<i32, _>(header.int_size, header.endianness);
         let double_parser = num_parsers::float_parser::<f64, _>(8, header.endianness);
 
-        for _ in 0..num_points {
-            unimplemented!("Point entity reading not implemented")
-        }
-
-        let (input, curves) = count(
-            |i| parse_curve(size_t_parser, int_parser, double_parser, i),
-            num_curves,
+        let (input, points) = context(
+            "Point entity section",
+            count(
+                |i| parse_point(size_t_parser, int_parser, double_parser, i),
+                num_points,
+            ),
         )(input)?;
 
-        let (input, surfaces) = count(
-            |i| parse_surface(size_t_parser, int_parser, double_parser, i),
-            num_surfaces,
+        let (input, curves) = context(
+            "Curve entity section",
+            count(
+                |i| parse_curve(size_t_parser, int_parser, double_parser, i),
+                num_curves,
+            ),
         )(input)?;
 
-        let (input, volumes) = count(
-            |i| parse_volume(size_t_parser, int_parser, double_parser, i),
-            num_volumes,
+        let (input, surfaces) = context(
+            "Surface entity section",
+            count(
+                |i| parse_surface(size_t_parser, int_parser, double_parser, i),
+                num_surfaces,
+            ),
+        )(input)?;
+
+        let (input, volumes) = context(
+            "Volume entity section",
+            count(
+                |i| parse_volume(size_t_parser, int_parser, double_parser, i),
+                num_volumes,
+            ),
         )(input)?;
 
         Ok((
             input,
             Entities {
-                points: Vec::new(),
+                points,
                 curves,
                 surfaces,
                 volumes,
             },
         ))
     }
+}
+
+fn parse_point<
+    'a,
+    U: MshUsizeT,
+    I: MshIntT,
+    F: MshFloatT,
+    SizeTParser,
+    IntParser,
+    FloatParser,
+    E: ParseError<&'a [u8]>,
+>(
+    size_t_parser: SizeTParser,
+    int_parser: IntParser,
+    double_parser: FloatParser,
+    input: &'a [u8],
+) -> IResult<&'a [u8], Point<I, F>, E>
+where
+    SizeTParser: Fn(&'a [u8]) -> IResult<&'a [u8], U, E>,
+    IntParser: Fn(&'a [u8]) -> IResult<&'a [u8], I, E>,
+    FloatParser: Fn(&'a [u8]) -> IResult<&'a [u8], F, E>,
+{
+    let (input, point_tag) = int_parser(input)?;
+
+    let (input, x) = double_parser(input)?;
+    let (input, y) = double_parser(input)?;
+    let (input, z) = double_parser(input)?;
+
+    let (input, num_physical_tags) = size_t_parser(input)?;
+    let num_physical_tags = num_physical_tags.to_usize().unwrap();
+
+    let (input, physical_tags) = context(
+        "Point entity physical tags",
+        count(|i| int_parser(i), num_physical_tags),
+    )(input)?;
+
+    Ok((
+        input,
+        Point {
+            tag: point_tag,
+            x,
+            y,
+            z,
+            physical_tags,
+        },
+    ))
 }
 
 fn parse_curve<
@@ -86,18 +147,25 @@ where
     let (input, num_physical_tags) = size_t_parser(input)?;
     let num_physical_tags = num_physical_tags.to_usize().unwrap();
 
-    let mut physical_tags = vec![I::zero(); num_physical_tags];
-    for j in 0..num_physical_tags {
-        physical_tags[j] = int_parser(input)?.1;
-    }
+    let (input, physical_tags) = context(
+        "Curve entity physical tags",
+        count(|i| int_parser(i), num_physical_tags),
+    )(input)?;
 
     let (input, num_bounding_points) = size_t_parser(input)?;
     let num_bounding_points = num_bounding_points.to_usize().unwrap();
 
-    let mut point_tags = vec![I::zero(); num_bounding_points];
-    for j in 0..num_bounding_points {
-        point_tags[j] = int_parser(input)?.1;
-    }
+    let (input, point_tags) = context(
+        "Curve entity bounding point tags",
+        count(
+            |i| {
+                let ret = int_parser(i);
+                println!("Curve entity bounding point tag test");
+                ret
+            },
+            num_bounding_points,
+        ),
+    )(input)?;
 
     Ok((
         input,
@@ -147,18 +215,18 @@ where
     let (input, num_physical_tags) = size_t_parser(input)?;
     let num_physical_tags = num_physical_tags.to_usize().unwrap();
 
-    let mut physical_tags = vec![I::zero(); num_physical_tags];
-    for j in 0..num_physical_tags {
-        physical_tags[j] = int_parser(input)?.1;
-    }
+    let (input, physical_tags) = context(
+        "Surface entity physical tags",
+        count(|i| int_parser(i), num_physical_tags),
+    )(input)?;
 
     let (input, num_bounding_curves) = size_t_parser(input)?;
     let num_bounding_curves = num_bounding_curves.to_usize().unwrap();
 
-    let mut curve_tags = vec![I::zero(); num_bounding_curves];
-    for j in 0..num_bounding_curves {
-        curve_tags[j] = int_parser(input)?.1;
-    }
+    let (input, curve_tags) = context(
+        "Surface entity bounding curve tags",
+        count(|i| int_parser(i), num_bounding_curves),
+    )(input)?;
 
     Ok((
         input,
@@ -208,18 +276,18 @@ where
     let (input, num_physical_tags) = size_t_parser(input)?;
     let num_physical_tags = num_physical_tags.to_usize().unwrap();
 
-    let mut physical_tags = vec![I::zero(); num_physical_tags];
-    for j in 0..num_physical_tags {
-        physical_tags[j] = int_parser(input)?.1;
-    }
+    let (input, physical_tags) = context(
+        "Volume entity physical tags",
+        count(|i| int_parser(i), num_physical_tags),
+    )(input)?;
 
     let (input, num_bounding_surfaces) = size_t_parser(input)?;
     let num_bounding_surfaces = num_bounding_surfaces.to_usize().unwrap();
 
-    let mut surface_tags = vec![I::zero(); num_bounding_surfaces];
-    for j in 0..num_bounding_surfaces {
-        surface_tags[j] = int_parser(input)?.1;
-    }
+    let (input, surface_tags) = context(
+        "Volume entity bounding point surfaces",
+        count(|i| int_parser(i), num_bounding_surfaces),
+    )(input)?;
 
     Ok((
         input,

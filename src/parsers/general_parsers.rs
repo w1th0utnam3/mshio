@@ -1,8 +1,12 @@
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take, take_while};
+use nom::character::complete::{char, digit1};
+use nom::combinator::{opt, recognize};
 use nom::error::{ErrorKind, ParseError};
-use nom::sequence::delimited;
+use nom::lib::std::ops::{RangeFrom, RangeTo};
+use nom::sequence::{delimited, pair};
 use nom::{AsChar, IResult};
+use nom::{InputIter, InputTakeAtPosition, Offset, Slice};
 
 /// Consumes the whole input
 ///
@@ -125,6 +129,32 @@ where
 {
     let delim = delimited(take_sp, parser, take_sp);
     move |input: I| delim(input)
+}
+
+/// Consumes an integer
+///
+/// ```
+/// use nom::Err;
+/// use nom::error::{ErrorKind, ParseError};
+///
+/// let parser = mshio::parsers::recognize_integer::<_,(_,_)>;
+///
+/// assert_eq!(parser("123abc"), Ok(("abc", "123")));
+/// assert_eq!(parser("-123abc"), Ok(("abc", "-123")));
+/// assert_eq!(parser("abc123"), Err(Err::Error(ParseError::from_error_kind("abc123", ErrorKind::Digit))));
+/// ```
+pub fn recognize_integer<I, E: ParseError<I>>(i: I) -> IResult<I, I, E>
+where
+    I: Clone
+        + Offset
+        + Slice<RangeTo<usize>>
+        + Slice<RangeFrom<usize>>
+        + InputIter
+        + InputTakeAtPosition,
+    <I as InputIter>::Item: AsChar,
+    <I as InputTakeAtPosition>::Item: AsChar,
+{
+    recognize(pair(opt(char('-')), digit1))(i)
 }
 
 /// ```

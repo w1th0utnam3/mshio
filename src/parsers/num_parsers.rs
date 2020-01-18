@@ -10,7 +10,7 @@ use nom::IResult;
 use num::Integer;
 use num_traits::{Float, NumCast, Signed, Unsigned};
 
-use crate::parsers::ws;
+use crate::parsers::{recognize_integer, ws};
 
 pub fn uint_parser<'a, T: Unsigned + Integer + NumCast + str::FromStr, E: ParseError<&'a [u8]>>(
     source_size: usize,
@@ -123,7 +123,7 @@ pub fn int_parser<'a, T: Signed + Integer + NumCast + str::FromStr, E: ParseErro
             }
         },
         None => {
-            (|i| match ws(map(digit1, |items| {
+            (|i| match ws(map(recognize_integer, |items| {
                 str::FromStr::from_str(str::from_utf8(items).unwrap())
             }))(i)
             {

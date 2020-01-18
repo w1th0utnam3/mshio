@@ -23,6 +23,7 @@ fn msh_parses(msh: &[u8]) -> bool {
         Ok(_) => true,
         Err(err) => {
             println!("Error: {}", err);
+            println!("Debug: {:?}", err);
             false
         }
     }
@@ -114,6 +115,50 @@ fn cylinder_bin_file() {
     let element_types = msh.count_element_types();
     assert_eq!(element_types.len(), 1);
     assert_eq!(element_types.get(&ElementType::Tet20), Some(&9792));
+}
+
+#[test]
+fn sphere_point_entities_file_ascii() {
+    let msh_bin = read_bytes("tests/sphere_coarse.msh");
+    assert!(msh_parses(&msh_bin));
+
+    let msh = mshio::parse_msh_bytes(&msh_bin).unwrap();
+    assert_eq!(msh.total_node_count(), 183);
+    assert_eq!(msh.total_element_count(), 891);
+
+    assert_eq!(msh.point_count(), 2);
+    assert_eq!(msh.curve_count(), 3);
+    assert_eq!(msh.surface_count(), 1);
+    assert_eq!(msh.volume_count(), 1);
+
+    let element_types = msh.count_element_types();
+    assert_eq!(element_types.len(), 4);
+    assert_eq!(element_types.get(&ElementType::Pnt), Some(&2));
+    assert_eq!(element_types.get(&ElementType::Lin2), Some(&10));
+    assert_eq!(element_types.get(&ElementType::Tri3), Some(&286));
+    assert_eq!(element_types.get(&ElementType::Tet4), Some(&593));
+}
+
+#[test]
+fn sphere_point_entities_file_bin() {
+    let msh_bin = read_bytes("tests/sphere_coarse_bin.msh");
+    assert!(msh_parses(&msh_bin));
+
+    let msh = mshio::parse_msh_bytes(&msh_bin).unwrap();
+    assert_eq!(msh.total_node_count(), 183);
+    assert_eq!(msh.total_element_count(), 891);
+
+    assert_eq!(msh.point_count(), 2);
+    assert_eq!(msh.curve_count(), 3);
+    assert_eq!(msh.surface_count(), 1);
+    assert_eq!(msh.volume_count(), 1);
+
+    let element_types = msh.count_element_types();
+    assert_eq!(element_types.len(), 4);
+    assert_eq!(element_types.get(&ElementType::Pnt), Some(&2));
+    assert_eq!(element_types.get(&ElementType::Lin2), Some(&10));
+    assert_eq!(element_types.get(&ElementType::Tri3), Some(&286));
+    assert_eq!(element_types.get(&ElementType::Tet4), Some(&593));
 }
 
 #[test]

@@ -52,7 +52,7 @@ impl<I: Debug> Display for MshParserError<I> {
                     if let VerboseErrorKind::Context(c) = ve.errors[1].1 {
                         write!(f, "{}", c)?;
                     } else {
-                        write!(f, "Unknown error.")?;
+                        write!(f, "Unknown error ({:?}).", ve.errors[1].1)?;
                     }
                     Ok(())
                 } else if ve.errors.len() == 2 {
@@ -60,7 +60,7 @@ impl<I: Debug> Display for MshParserError<I> {
                     if let VerboseErrorKind::Context(c) = ve.errors[1].1 {
                         write!(f, "{}", c)
                     } else {
-                        write!(f, "Unknown error")
+                        write!(f, "Unknown error ({:?})", ve.errors[1].1)
                     }
                 } else {
                     write!(f, "Unknown error")
