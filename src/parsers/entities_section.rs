@@ -158,11 +158,7 @@ where
     let (input, point_tags) = context(
         "Curve entity bounding point tags",
         count(
-            |i| {
-                let ret = int_parser(i);
-                println!("Curve entity bounding point tag test");
-                ret
-            },
+            |i| int_parser(i),
             num_bounding_points,
         ),
     )(input)?;
