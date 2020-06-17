@@ -45,3 +45,15 @@ will return an error. This can be the case if a mesh written on a 64-bit machine
 32-bit machine. This might be fixed in a later release to allow to read such meshes as long
 as the total number of elements/nodes in a block fits into `usize` (otherwise they cannot be
 stored in a `Vec` anyway).
+
+**What is already implemented**
+ - Parsing of ASCII and binary (big/little endian) MSH files.
+ - Parsing of the `Entities`, `Nodes`, `Elements` sections.
+ - Supports all element types currently supported by Gmsh.
+
+**Issues**
+ - The errors returned by the parser only wrap the raw `nom` parser errors, in the future there should be more specific error values.
+ - A mesh indexed using `sizeof(size_t)==8` (64 bit) unsigned integers cannot be loaded on `sizeof(size_t)==4` (32 bit) machines.
+ - The library contains some unnecessary `panic!`/`unimplemented!` calls that should be turned into errors.
+ - Unsupported sections are silently ignored, maybe the `MshData` should store the names of the ignored sections for debugging.
+ - The MSH format allows to have multiple sections of the same type, currently this results in a panic. Joining them would require more logic, but it might also be ok to just store all sections of the same type in a `Vec`. Joining could be performed afterwards by utility functions.
