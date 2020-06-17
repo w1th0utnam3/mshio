@@ -122,7 +122,7 @@ pub struct MshHeader {
     pub endianness: Option<Endianness>,
 }
 
-/// Mesh data of a
+/// Contains all parsed sections of the MSH file
 #[derive(Clone, Debug, PartialEq)]
 pub struct MshData<U, I, F>
 where
