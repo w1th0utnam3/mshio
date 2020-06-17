@@ -1,4 +1,33 @@
-//! Parser for Gmsh mesh data of the MSH file format version 4.1
+//! Parser for Gmsh mesh files using the MSH file format version 4.1
+//!
+//! The library supports parsing ASCII and binary encoded MSH files adhering to the MSH file format
+//! version 4.1 as specified in the [Gmsh documention](http://gmsh.info/doc/texinfo/gmsh.html#MSH-file-format).
+//!
+//! ```
+//! use std::error::Error;
+//! use std::fs;
+//!
+//! fn main() -> Result<(), Box<dyn Error>> {
+//!     // Try to read and parse a MSH file
+//!     let msh_bytes = fs::read("tests/sphere_coarse.msh")?;
+//!     let parser_result = mshio::parse_msh_bytes(msh_bytes.as_slice());
+//!
+//!     // Note that the a parser error cannot be propagated directly using the ?-operator, as it
+//!     // contains a reference into the u8 slice where the error occurred.
+//!     let msh = parser_result.map_err(|e| format!("Error while parsing:\n{}", e))?;
+//!     assert_eq!(msh.total_element_count(), 891);
+//!
+//!     Ok(())
+//! }
+//! ```
+//!
+//! If parsing was successful, the [`parse_msh_bytes`](fn.parse_msh_bytes.html) function returns a
+//! [`MshFile`](mshfile/struct.MshFile.html) instance. The structure of `MshFile` closely mirrors
+//! the file format definition. For example the `MeshData` associated to a `MshFile` may contain an
+//! optional [`Elements`](mshfile/struct.Elements.html) section. This `Elements` section can contain
+//! an arbitray number of [`ElementBlock`](mshfile/struct.ElementBlock.html) instances, where each
+//! `ElementBlock` only contains elements of the same type and dimension.
+//!
 
 use std::convert::{TryFrom, TryInto};
 use std::str;
@@ -12,20 +41,25 @@ use nom::IResult;
 
 /// Error handling components of the parser
 pub mod error;
-/// Contains all types that are used to represent parsed MSH files
+/// Contains all types that are used to represent the structure of parsed MSH files
+///
+/// The central type is [`MshFile`](struct.MshFile.html) which contains the whole structure of the
+/// parsed mesh.
 pub mod mshfile;
 /// Parser utility functions used by this MSH parser (may be private in the future)
 pub mod parsers;
 
+/// Error type returned by the MSH parser if parsing fails without panic
 pub use error::MshParserError;
-use error::{create_error, error_strings};
+/// Re-exports all types that are used to represent the structure of an MSH file
 pub use mshfile::*;
+
+use error::{create_error, error_strings};
 use parsers::{br, take_sp};
 use parsers::{
     parse_element_section, parse_entity_section, parse_header_section, parse_node_section,
 };
 
-// TODO: Implement parser for point entities
 // TODO: Implement parser for physical groups
 // TODO: Replace panics and unimplemented! calls with Err
 // TODO: Add more context calls for all levels of parsers
@@ -55,9 +89,9 @@ impl<'a> TryFrom<&'a [u8]> for MshFile<usize, i32, f64> {
     }
 }
 
-/// Try to parse a MshFile from a slice of bytes
+/// Try to parse a [`MshFile`](mshfile/struct.MshFile.html) from a slice of bytes
 ///
-/// The input  can be the content of an ASCII or binary encoded MSH file of file format version 4.1.
+/// The input can be the content of an ASCII or binary encoded MSH file of file format version 4.1.
 pub fn parse_msh_bytes<'a>(
     input: &'a [u8],
 ) -> Result<MshFile<usize, i32, f64>, MshParserError<&'a [u8]>> {
