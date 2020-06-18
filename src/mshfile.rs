@@ -118,6 +118,8 @@ pub struct MshHeader {
     pub size_t_size: usize,
     /// Size in bytes of the int data type in this MSH file
     pub int_size: usize,
+    /// Size in bytes of the float data type in this MSH file
+    pub float_size: usize,
     /// The detected endianness of this MSh file if it is binary
     pub endianness: Option<Endianness>,
 }

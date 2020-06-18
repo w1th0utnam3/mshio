@@ -55,6 +55,7 @@ pub(crate) fn parse_header_section<'a, E: ParseError<&'a [u8]>>(
             file_type,
             size_t_size: data_size as usize,
             int_size: 4,
+            float_size: 8,
             endianness,
         },
     ))
