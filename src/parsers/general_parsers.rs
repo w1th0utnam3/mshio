@@ -314,7 +314,7 @@ where
 pub fn verify_or<I, O1, O2, E: ParseError<I>, F, G, H>(
     parser: F,
     validator: G,
-    alt_parser: H,
+    alt: H,
 ) -> impl Fn(I) -> IResult<I, O1, E>
 where
     I: Clone + nom::InputIter,
@@ -322,13 +322,13 @@ where
     O2: ?Sized,
     F: Fn(I) -> IResult<I, O1, E>,
     G: Fn(&O2) -> bool,
-    H: Fn(I) -> IResult<I, O1, E>
+    H: Fn(I) -> IResult<I, O1, E>,
 {
     move |input: I| {
         let i = input.clone();
         let (input, out) = parser(input)?;
         if !validator(out.borrow()) {
-            return alt_parser(i);
+            return alt(i);
         }
         Ok((input, out))
     }

@@ -54,6 +54,8 @@ pub enum MshParserErrorKind {
     TooManyEntities,
     #[error("A {0} value could not be parsed because it was out of range of the target data type.")]
     ValueOutOfRange(ValueType),
+    #[error("An invalid entity tag was detected.")]
+    InvalidTag,
     #[error("{0}")]
     Context(Cow<'static,str>),
     #[error("{0:?}")]
@@ -135,6 +137,11 @@ impl<I> MshParserError<I> {
         self.backtrace.iter().skip_while(|(_, e)| e.is_nom_error())
     }
 
+    /// Iterator to the first error in the backtrace that is actually a MSH error
+    pub fn filter_msh_errors(&self) -> impl Iterator<Item = &(I, MshParserErrorKind)> {
+        self.backtrace.iter().filter(|(_, e)| !e.is_nom_error())
+    }
+
     /// Returns the first error in the backtrace that is not an internal nom error
     pub fn first_msh_error(&self) -> Option<MshParserErrorKind> {
         self.begin_msh_errors().next().map(|(_, ek)| ek).cloned()
@@ -143,8 +150,8 @@ impl<I> MshParserError<I> {
 
 impl<I: Clone> MshParserError<I> {
     /// Returns a backtrace of all errors, excluding the first internal nom errors
-    pub fn trimmed_backtrace(&self) -> Vec<(I, MshParserErrorKind)> {
-        self.begin_msh_errors().cloned().collect()
+    pub fn filtered_backtrace(&self) -> Vec<(I, MshParserErrorKind)> {
+        self.filter_msh_errors().cloned().collect()
     }
 }
 
@@ -159,7 +166,7 @@ impl<I: Debug + HexDisplay + ?Sized> Display for MshParserError<&I> {
     // TODO: Instead, make Display implementation more simple.
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // Remove all internal nom errors
-        let backtrace = self.trimmed_backtrace();
+        let backtrace = self.filtered_backtrace();
         if backtrace.len() > 1 {
             write!(f, "During parsing...\n")?;
             for (_, ek) in backtrace[1..].iter().rev() {
@@ -174,6 +181,7 @@ impl<I: Debug + HexDisplay + ?Sized> Display for MshParserError<&I> {
             write!(
                 f,
                 "Hex dump of the file at the error location:\n{}",
+                // TODO: Limit to a reasonable number of bytes
                 backtrace[0].0.to_hex(16)
             )?;
             Ok(())

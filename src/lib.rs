@@ -78,18 +78,10 @@ use parsers::{
 };
 
 // TODO: Implement parser for physical groups
-// TODO: Log in the MeshData what sections were ignored
+// TODO: Log in the MeshData struct which sections were ignored
 // TODO: Replace panic!, unimplemented!, unwrap and expect calls with Err
 // TODO: Add more context calls for all levels of parsers
-// TODO: Review the passing of primitive parser functions as generic parameters (don't support Copy)
 
-// TODO: Add proper enum variants for custom error
-// TODO: Global static strings for error context
-// TODO: Map static string error context back to error enum variants
-
-// TODO: Add checks to ensure that an error is returned if number of nodes/elements etc.
-//  is larger than usize::MAX
-// TODO: Replace some default usage in parser of usize with u64
 // TODO: Add tests that try to parse a mesh with u64 indices to u32
 
 /// Debug helper to view u8 slice as utf8 str and print it
@@ -129,7 +121,7 @@ fn private_parse_msh_bytes<'a>(
         parsers::parse_delimited_block(
             terminated(tag("$MeshFormat"), br),
             terminated(tag("$EndMeshFormat"), br),
-            context("MSH file header content", parse_header_section),
+            context("MSH format header content", parse_header_section),
         ),
     )(input)?;
 
@@ -162,7 +154,7 @@ fn private_parse_msh_bytes<'a>(
             let (input_, entities) = parse_section!(
                 "$Entities",
                 "$EndEntities",
-                |i| context("Entity section content", parse_entity_section(&header))(i),
+                |i| context("entity section", parse_entity_section(&header))(i),
                 input
             )?;
 
@@ -174,7 +166,7 @@ fn private_parse_msh_bytes<'a>(
             let (input_, nodes) = parse_section!(
                 "$Nodes",
                 "$EndNodes",
-                |i| context("Node section content", parse_node_section(&header))(i),
+                |i| context("node section", parse_node_section(&header))(i),
                 input
             )?;
 
@@ -186,7 +178,7 @@ fn private_parse_msh_bytes<'a>(
             let (input_, elements) = parse_section!(
                 "$Elements",
                 "$EndElements",
-                |i| context("Element section content", parse_element_section(&header))(i),
+                |i| context("element section", parse_element_section(&header))(i),
                 input
             )?;
 

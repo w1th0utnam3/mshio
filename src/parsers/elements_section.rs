@@ -2,10 +2,11 @@ use std::collections::HashMap;
 
 use nom::multi::count;
 use nom::IResult;
-use num::traits::{FromPrimitive, ToPrimitive};
+use num::traits::FromPrimitive;
 
-use crate::error::{error, MshParserCompatibleError, MshParserError, MshParserErrorKind};
+use crate::error::{context, error, MshParserError, MshParserErrorKind};
 use crate::mshfile::{Element, ElementBlock, ElementType, Elements, MshHeader, MshIntT, MshUsizeT};
+use crate::parsers::general_parsers::verify_or;
 use crate::parsers::num_parsers;
 
 pub(crate) fn parse_element_section<'a, 'b: 'a>(
@@ -13,28 +14,71 @@ pub(crate) fn parse_element_section<'a, 'b: 'a>(
 ) -> impl Fn(&'b [u8]) -> IResult<&'b [u8], Elements<u64, i32>, MshParserError<&'b [u8]>> {
     let header = header.clone();
     move |input| {
-        let size_t_parser = num_parsers::uint_parser::<u64>(header.size_t_size, header.endianness);
-
-        let (input, num_entity_blocks) = size_t_parser(input)?;
-        let (input, num_elements) = size_t_parser(input)?;
-        let (input, min_element_tag) = size_t_parser(input)?;
-        let (input, max_element_tag) = size_t_parser(input)?;
-
         let int_parser = num_parsers::int_parser::<i32>(header.int_size, header.endianness);
+        let size_t_parser = num_parsers::uint_parser::<u64>(header.size_t_size, header.endianness);
+        let to_usize_parser = num_parsers::usize_parser(&size_t_parser);
 
-        let sparse_tags = if min_element_tag == 0 {
-            panic!("Element tag 0 is reserved for internal use");
-        } else if max_element_tag - min_element_tag > num_elements - 1 {
+        let (input, (num_entity_blocks, num_elements, min_element_tag, max_element_tag)) = context(
+            "Element section header",
+            |input| {
+                let (input, num_entity_blocks) =
+                    context("number of element entity blocks", &to_usize_parser)(input)?;
+                let (input, num_elements) =
+                    context("total number of elements", &size_t_parser)(input)?;
+                let (input, min_element_tag) = context(
+                    "min element tag",
+                    verify_or(
+                        &size_t_parser,
+                        |tag| *tag != 0,
+                        context(
+                            "Element tag 0 is reserved for internal use",
+                            error(MshParserErrorKind::InvalidTag),
+                        ),
+                    ),
+                )(input)?;
+                let (input, max_element_tag) = context(
+                "max element tag",
+                verify_or(
+                    &size_t_parser,
+                    |max_tag| *max_tag >= min_element_tag,
+                    context(
+                        "The maximum element tag has to be larger or equal to the minimum element tag",
+                        error(MshParserErrorKind::InvalidTag),
+                    ),
+                ),
+            )(input)?;
+
+                Ok((
+                    input,
+                    (
+                        num_entity_blocks,
+                        num_elements,
+                        min_element_tag,
+                        max_element_tag,
+                    ),
+                ))
+            },
+        )(
+            input
+        )?;
+
+        let sparse_tags = if max_element_tag - min_element_tag > num_elements - 1 {
             true
         } else {
             false
         };
 
+        // Parse the individual element entity blocks
         let (input, element_entity_blocks) = count(
-            |i| parse_element_entity(size_t_parser, int_parser, sparse_tags, i),
-            num_entity_blocks.to_usize().unwrap(), // TODO,
+            |i| {
+                context("element entity block", |i| {
+                    parse_element_entity(&size_t_parser, &int_parser, sparse_tags, i)
+                })(i)
+            },
+            num_entity_blocks,
         )(input)?;
 
+        // Return the element section content
         Ok((
             input,
             Elements {
@@ -47,30 +91,35 @@ pub(crate) fn parse_element_section<'a, 'b: 'a>(
     }
 }
 
-fn parse_element_type<'a, I, IntParser, E>(
+fn parse_element_type<'a, I, IntParser>(
     int_parser: IntParser,
     input: &'a [u8],
 ) -> IResult<&'a [u8], ElementType, MshParserError<&'a [u8]>>
 where
     I: MshIntT,
-    IntParser: Fn(&'a [u8]) -> IResult<&'a [u8], I, E>,
-    E: MshParserCompatibleError<&'a [u8]>,
-    nom::Err<MshParserError<&'a [u8]>>: From<nom::Err<E>>,
+    IntParser: Clone + Fn(&'a [u8]) -> IResult<&'a [u8], I, MshParserError<&'a [u8]>>,
 {
+    // Read the raw integer representing the element type
     let (input_new, element_type_raw) = int_parser(input)?;
+
+    // Try to convert it into i32 (because this is the underlying type of our enum)
     let element_type_raw = element_type_raw.to_i32().ok_or_else(|| {
         MshParserErrorKind::ElementUnknown
             .into_error(input)
             .into_nom_error()
     })?;
 
+    // Try to construct a element type variant from the i32 value
     match ElementType::from_i32(element_type_raw) {
         Some(element_type) => Ok((input_new, element_type)),
-        None => error(MshParserErrorKind::ElementUnknown)(input),
+        None => context(
+            format!("value {}", element_type_raw),
+            error(MshParserErrorKind::ElementUnknown),
+        )(input),
     }
 }
 
-fn parse_element_entity<'a, U, I, SizeTParser, IntParser, E>(
+fn parse_element_entity<'a, U, I, SizeTParser, IntParser>(
     size_t_parser: SizeTParser,
     int_parser: IntParser,
     sparse_tags: bool,
@@ -79,38 +128,28 @@ fn parse_element_entity<'a, U, I, SizeTParser, IntParser, E>(
 where
     U: MshUsizeT,
     I: MshIntT,
-    SizeTParser: Fn(&'a [u8]) -> IResult<&'a [u8], U, E>,
-    IntParser: Fn(&'a [u8]) -> IResult<&'a [u8], I, E>,
-    E: MshParserCompatibleError<&'a [u8]>,
-    nom::Err<MshParserError<&'a [u8]>>: From<nom::Err<E>>,
+    SizeTParser: Fn(&'a [u8]) -> IResult<&'a [u8], U, MshParserError<&'a [u8]>>,
+    IntParser: Fn(&'a [u8]) -> IResult<&'a [u8], I, MshParserError<&'a [u8]>>,
 {
-    let (input, entity_dim) = int_parser(input)?;
-    let (input, entity_tag) = int_parser(input)?;
-    let (input, element_type) = parse_element_type(int_parser, input)?;
-    let (input_new, num_elements_in_block) = size_t_parser(input)?;
+    let to_usize_parser = num_parsers::usize_parser(&size_t_parser);
 
-    // Try to convert number of elements to usize
-    let num_elements_in_block = num_elements_in_block.to_usize().ok_or_else(|| {
-        MshParserErrorKind::TooManyEntities
-            .into_error(input.clone())
-            .with_context(
-                input.clone(),
-                format!(
-                    "The current block contains {:?} entities",
-                    num_elements_in_block
-                ),
-            )
-            .into_nom_error()
-    })?;
+    let (input, entity_dim) = context("entity dimension", &int_parser)(input)?;
+    let (input, entity_tag) = context("entity tag", &int_parser)(input)?;
+    let (input, element_type) =
+        context("element type", move |i| parse_element_type(&int_parser, i))(input)?;
+    let (input_new, num_elements_in_block) =
+        context("number of elements in element block", to_usize_parser)(input)?;
 
     // Try to get the number of nodes per element
     let num_nodes = match element_type.nodes() {
         Ok(v) => v,
         Err(_) => {
+            // This can only happen if the .nodes() implementation is not in sync with the actual element types
             return error(MshParserErrorKind::ElementNumNodesUnknown)(input);
         }
     };
 
+    // Closure to parse a single element definition in the block
     let parse_element = |input| {
         let (input, element_tag) = size_t_parser(input)?;
 
@@ -131,8 +170,13 @@ where
         ))
     };
 
-    let (input, elements) = count(parse_element, num_elements_in_block)(input_new)?;
+    // Parse every element definition
+    let (input, elements) = count(
+        context("element definition", parse_element),
+        num_elements_in_block,
+    )(input_new)?;
 
+    // Extract the index -> element tags mapping if tags are sparse
     let element_tags = if sparse_tags {
         Some(
             elements

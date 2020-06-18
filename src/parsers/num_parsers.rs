@@ -12,24 +12,39 @@ use num::Integer;
 use num_traits::{Float, NumCast, Signed, Unsigned};
 
 use crate::error::{error, MshParserError, MshParserErrorKind, ValueType};
+use crate::mshfile::MshUsizeT;
 use crate::parsers::{recognize_integer, ws};
+
+// TODO: Remove Copy trait bounds on parsers
+
+pub fn usize_parser<'a, U, SizeTParser>(
+    size_t_parser: SizeTParser,
+) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], usize, MshParserError<&'a [u8]>>
+where
+    U: MshUsizeT,
+    SizeTParser: Fn(&'a [u8]) -> IResult<&'a [u8], U, MshParserError<&'a [u8]>>,
+{
+    move |input| {
+        let (new_input, parse_result) = size_t_parser(input)?;
+        let as_usize = parse_result.to_usize().ok_or_else(|| {
+            MshParserErrorKind::TooManyEntities
+                .into_error(input)
+                .into_nom_error()
+        })?;
+        Ok((new_input, as_usize))
+    }
+}
 
 pub fn uint_parser<'a, T: Unsigned + Integer + NumCast + str::FromStr>(
     source_size: usize,
     endianness: Option<Endianness>,
 ) -> impl Copy + Fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>> {
-    /*
-    if std::mem::size_of::<T>() < source_size {
-        panic!("Input unsigned integer size of {} bytes is too large for target unsigned integer size of {} bytes", source_size, std::mem::size_of::<T>());
-    }
-    */
-
     macro_rules! generate_parser {
         ($parser:expr) => {
             (|i| match $parser(i) {
                 Ok((i, v)) => {
                     if let Some(v) = T::from(v) {
-                        Ok(((i, v)))
+                        Ok((i, v))
                     } else {
                         error(MshParserErrorKind::ValueOutOfRange(ValueType::UnsignedInt))(i)
                     }
@@ -85,22 +100,12 @@ pub fn int_parser<'a, T: Signed + Integer + NumCast + str::FromStr>(
     source_size: usize,
     endianness: Option<Endianness>,
 ) -> impl Copy + Fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>> {
-    /*
-    if std::mem::size_of::<T>() < source_size {
-        panic!(
-            "Input integer input of {} bytes is too large for target integer size of {} bytes",
-            source_size,
-            std::mem::size_of::<T>()
-        );
-    }
-    */
-
     macro_rules! generate_parser {
         ($parser:expr) => {
             (|i| match $parser(i) {
                 Ok((i, v)) => {
                     if let Some(v) = T::from(v) {
-                        Ok(((i, v)))
+                        Ok((i, v))
                     } else {
                         error(MshParserErrorKind::ValueOutOfRange(ValueType::Int))(i)
                     }
@@ -156,22 +161,12 @@ pub fn float_parser<'a, T: Float + NumCast>(
     source_size: usize,
     endianness: Option<Endianness>,
 ) -> impl Copy + Fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>> {
-    /*
-    if std::mem::size_of::<T>() < source_size {
-        panic!(
-            "Input float size of {} bytes is too large for target float size of {} bytes",
-            source_size,
-            std::mem::size_of::<T>()
-        );
-    }
-    */
-
     macro_rules! generate_parser {
         ($parser:expr) => {
             (|i| match $parser(i) {
                 Ok((i, v)) => {
                     if let Some(v) = T::from(v) {
-                        Ok(((i, v)))
+                        Ok((i, v))
                     } else {
                         error(MshParserErrorKind::ValueOutOfRange(ValueType::Float))(i)
                     }
