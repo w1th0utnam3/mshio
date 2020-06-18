@@ -3,7 +3,9 @@ use std::fmt;
 use std::fmt::{Debug, Display};
 
 use nom::error::{context as nom_context, ErrorKind, ParseError, VerboseError, VerboseErrorKind};
-use nom::IResult;
+use nom::{HexDisplay, IResult};
+
+// TODO: Think about a better solution than a static_context and owned_context combinator
 
 /// Contains error message strings used in the library
 pub(crate) mod error_strings {
@@ -45,8 +47,28 @@ pub(crate) fn create_error<I: Clone, O>(
     }
 }
 
-/// Returns a combinator that appends a context message if the callable returns an error
-pub(crate) fn context<I: Clone, F, O, S: AsRef<str>>(
+/// Returns a combinator that appends a static context message if the callable returns an error
+pub(crate) fn static_context<I: Clone, F, O>(
+    context: &'static str,
+    f: F,
+) -> impl Fn(I) -> IResult<I, O, MshParserError<I>>
+where
+    F: Fn(I) -> IResult<I, O, MshParserError<I>>,
+{
+    move |i: I| match f(i.clone()) {
+        Ok(o) => Ok(o),
+        Err(nom::Err::Incomplete(i)) => Err(nom::Err::Incomplete(i)),
+        Err(nom::Err::Error(e)) => Err(nom::Err::Error(
+            e.append(i, MshParserErrorKind::StaticContext(context)),
+        )),
+        Err(nom::Err::Failure(e)) => Err(nom::Err::Failure(
+            e.append(i, MshParserErrorKind::StaticContext(context)),
+        )),
+    }
+}
+
+/// Returns a combinator that appends an owned context message (String) if the callable returns an error
+pub(crate) fn owned_context<I: Clone, F, O, S: AsRef<str>>(
     context: S,
     f: F,
 ) -> impl Fn(I) -> IResult<I, O, MshParserError<I>>
@@ -68,8 +90,28 @@ pub enum MshParserErrorKind {
     SectionHeaderInvalid,
     ElementUnknown,
     ElementNumNodesUnknown,
-    Context(String),
+    OwnedContext(String),
+    StaticContext(&'static str),
     NomVerbose(VerboseErrorKind),
+}
+
+impl MshParserErrorKind {
+    fn is_nom_error(&self) -> bool {
+        match self {
+            MshParserErrorKind::NomVerbose(_) => true,
+            _ => false,
+        }
+    }
+
+    /// Returns a reference to the context message of this error contains one
+    fn context(&self) -> Option<&str> {
+        match self {
+            MshParserErrorKind::OwnedContext(c) => Some(c.as_str()),
+            MshParserErrorKind::StaticContext(c) => Some(*c),
+            MshParserErrorKind::NomVerbose(VerboseErrorKind::Context(c)) => Some(*c),
+            _ => None,
+        }
+    }
 }
 
 impl From<VerboseErrorKind> for MshParserErrorKind {
@@ -81,81 +123,86 @@ impl From<VerboseErrorKind> for MshParserErrorKind {
 /// Error type returned by the MSH parser if parsing fails without panic
 pub struct MshParserError<I> {
     /// The error backtrace
-    pub errors: Vec<(I, MshParserErrorKind)>,
+    pub backtrace: Vec<(I, MshParserErrorKind)>,
 }
 
 impl<I> MshParserError<I> {
     fn new() -> Self {
-        Self { errors: Vec::new() }
+        Self {
+            backtrace: Vec::new(),
+        }
     }
 
     /// Construct a new error with the given input and error kind
     fn from_error_kind(input: I, kind: MshParserErrorKind) -> Self {
         Self {
-            errors: vec![(input, kind)],
+            backtrace: vec![(input, kind)],
         }
     }
 
     /// Append an error to the backtrace with the given input and error kind
-    fn append(&mut self, input: I, kind: MshParserErrorKind) {
-        self.errors.push((input, kind));
-    }
-
-    /// Append a context message to the backtrace
-    fn add_context(&mut self, input: I, context_msg: String) {
-        self.append(input, MshParserErrorKind::Context(context_msg));
+    fn append(mut self, input: I, kind: MshParserErrorKind) -> Self {
+        self.backtrace.push((input, kind));
+        self
     }
 
     /// Append a context message to the backtrace, consuming
-    fn with_context(mut self, input: I, context_msg: String) -> Self {
-        self.add_context(input, context_msg);
-        self
+    fn with_context(self, input: I, context_msg: String) -> Self {
+        self.append(input, MshParserErrorKind::OwnedContext(context_msg))
+    }
+
+    /// Iterator to the first error in the backtrace that is actually a MSH error
+    pub fn begin_msh_errors(&self) -> impl Iterator<Item = &(I, MshParserErrorKind)> {
+        self.backtrace.iter().skip_while(|(_, e)| e.is_nom_error())
+    }
+}
+
+impl<I: Clone> MshParserError<I> {
+    /// Returns a backtrace of all errors, excluding the deepest internal nom errors
+    pub fn trimmed_backtrace(&self) -> Vec<(I, MshParserErrorKind)> {
+        self.begin_msh_errors().cloned().collect()
     }
 }
 
 impl<I: Debug> Debug for MshParserError<I> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "MshParserError({:?})", self.errors)
+        write!(f, "MshParserError({:?})", self.backtrace)
     }
 }
 
-impl<I: Debug> Display for MshParserError<I> {
-    // TODO: Adapt this implementation for the new error type
+impl<I: Debug + HexDisplay + ?Sized> Display for MshParserError<&I> {
+    // TODO: Move this to a "report" method of the error.
+    // TODO: Instead make Display implementation more simple.
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        /*
-        if self.errors.len() > 2 {
+        // Remove all internal nom errors
+        let backtrace = self.trimmed_backtrace();
+        if backtrace.len() > 1 {
             write!(f, "During parsing...\n")?;
-            for (_, ek) in self.errors[2..].iter().rev() {
-                if let VerboseErrorKind::Context(c) = ek {
+            for (_, ek) in backtrace[1..].iter().rev() {
+                if let Some(c) = ek.context() {
                     write!(f, "\tin {},\n", c)?;
+                } else {
+                    write!(f, "\tin {:?},\n", ek)?;
                 }
             }
-            write!(f, "an error occured: ")?;
-            if let VerboseErrorKind::Context(c) = self.errors[1].1 {
-                write!(f, "{}", c)?;
-            } else {
-                write!(f, "Unknown error ({:?}).", self.errors[1].1)?;
-            }
+            write!(f, "an error occurred: ")?;
+            write!(f, "{:?}\n", backtrace[0].1)?;
+            write!(f, "Hex dump:\n{}", backtrace[0].0.to_hex(16))?;
             Ok(())
-        } else if self.errors.len() == 2 {
-            write!(f, "During parsing an error occured: ")?;
-            if let VerboseErrorKind::Context(c) = self.errors[1].1 {
-                write!(f, "{}", c)
-            } else {
-                write!(f, "Unknown error ({:?})", self.errors[1].1)
-            }
+        } else if backtrace.len() == 1 {
+            write!(f, "During parsing an error occurred: ")?;
+            write!(f, "{:?}", backtrace[0].1)?;
+            Ok(())
         } else {
-            write!(f, "Unknown error")
+            write!(f, "Unknown error occurred\n")
         }
-        */
-        write!(f, "Unknown error")
     }
 }
 
 impl<I> ParseError<I> for MshParserError<I> {
     fn from_error_kind(input: I, kind: ErrorKind) -> Self {
         Self {
-            errors: vec![(
+            backtrace: vec![(
                 input,
                 MshParserErrorKind::NomVerbose(VerboseErrorKind::Nom(kind)),
             )],
@@ -163,7 +210,7 @@ impl<I> ParseError<I> for MshParserError<I> {
     }
 
     fn append(input: I, kind: ErrorKind, mut other: Self) -> Self {
-        other.errors.push((
+        other.backtrace.push((
             input,
             MshParserErrorKind::NomVerbose(VerboseErrorKind::Nom(kind)),
         ));
@@ -172,7 +219,7 @@ impl<I> ParseError<I> for MshParserError<I> {
 
     fn from_char(input: I, c: char) -> Self {
         Self {
-            errors: vec![(
+            backtrace: vec![(
                 input,
                 MshParserErrorKind::NomVerbose(VerboseErrorKind::Char(c)),
             )],
@@ -180,7 +227,7 @@ impl<I> ParseError<I> for MshParserError<I> {
     }
 
     fn add_context(input: I, ctx: &'static str, mut other: Self) -> Self {
-        other.errors.push((
+        other.backtrace.push((
             input,
             MshParserErrorKind::NomVerbose(VerboseErrorKind::Context(ctx)),
         ));
@@ -188,12 +235,12 @@ impl<I> ParseError<I> for MshParserError<I> {
     }
 }
 
-impl<I: Debug> Error for MshParserError<I> {}
+impl<I: Debug + HexDisplay + ?Sized> Error for MshParserError<&I> {}
 
 impl<I: Debug> From<VerboseError<I>> for MshParserError<I> {
     fn from(e: VerboseError<I>) -> Self {
         MshParserError {
-            errors: e.errors.into_iter().map(|(i, ek)| (i, ek.into())).collect(),
+            backtrace: e.errors.into_iter().map(|(i, ek)| (i, ek.into())).collect(),
         }
     }
 }

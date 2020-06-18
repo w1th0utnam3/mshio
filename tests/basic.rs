@@ -22,11 +22,20 @@ fn msh_parses(msh: &[u8]) -> bool {
     match mshio::parse_msh_bytes(msh) {
         Ok(_) => true,
         Err(err) => {
-            println!("Error: {}", err);
-            println!("Debug: {:?}", err);
+            println!("Test error:\n{}", err);
+            println!("Error debug: {:?}", err);
             false
         }
     }
+}
+
+macro_rules! intended_error_output {
+    ($error_expr:expr) => {
+        println!("--- Start of intentionally provoked error output ---");
+        $error_expr;
+        println!("--- End of intentionally provoked error output ---");
+        println!("")
+    };
 }
 
 #[test]
@@ -162,7 +171,7 @@ fn sphere_point_entities_file_bin() {
 }
 
 #[test]
-fn comment_section_test() {
+fn test_comment_section() {
     let msh = "\
 $MeshFormat
 4.1 0 8
@@ -178,7 +187,7 @@ $EndComment
 }
 
 #[test]
-fn invalid_test() {
+fn test_invalid_section() {
     let msh = "\
 $MeshFormat
 4.1 0 8
@@ -188,13 +197,24 @@ $EndComment
 Hello
 
 ";
-    assert!(!msh_parses(msh.as_bytes()));
+    intended_error_output!(assert!(!msh_parses(msh.as_bytes())));
 }
 
 #[test]
-fn old_msh_version() {
+fn test_unsupported_msh_version_ascii() {
+    let msh = "\
+$MeshFormat
+27.1 0 8
+$EndMeshFormat
+
+";
+    intended_error_output!(!msh_parses(msh.as_bytes()));
+}
+
+#[test]
+fn test_old_msh_version_bin() {
     let msh = read_bytes("tests/old_msh_version.msh");
-    assert!(!msh_parses(&msh));
+    intended_error_output!(assert!(!msh_parses(&msh)));
 }
 
 #[test]

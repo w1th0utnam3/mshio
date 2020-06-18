@@ -71,7 +71,7 @@ pub use error::MshParserError;
 pub use mshfile::*;
 
 use crate::error::MshParserErrorKind;
-use error::{create_error, context};
+use error::{create_error, static_context};
 use parsers::{br, take_sp};
 use parsers::{
     parse_element_section, parse_entity_section, parse_header_section, parse_node_section,
@@ -124,12 +124,12 @@ pub fn parse_msh_bytes<'a>(
 fn private_parse_msh_bytes<'a>(
     input: &'a [u8],
 ) -> IResult<&'a [u8], MshFile<usize, i32, f64>, MshParserError<&'a [u8]>> {
-    let (input, header) = context(
+    let (input, header) = static_context(
         "MSH file header section",
         parsers::parse_delimited_block(
             terminated(tag("$MeshFormat"), br),
             terminated(tag("$EndMeshFormat"), br),
-            context("MSH file header content", parse_header_section),
+            static_context("MSH file header content", parse_header_section),
         ),
     )(input)?;
 
@@ -162,7 +162,7 @@ fn private_parse_msh_bytes<'a>(
             let (input_, entities) = parse_section!(
                 "$Entities",
                 "$EndEntities",
-                |i| context("Entity section content", parse_entity_section(&header))(i),
+                |i| static_context("Entity section content", parse_entity_section(&header))(i),
                 input
             )?;
 
@@ -174,7 +174,7 @@ fn private_parse_msh_bytes<'a>(
             let (input_, nodes) = parse_section!(
                 "$Nodes",
                 "$EndNodes",
-                |i| context("Node section content", parse_node_section(&header))(i),
+                |i| static_context("Node section content", parse_node_section(&header))(i),
                 input
             )?;
 
@@ -186,7 +186,7 @@ fn private_parse_msh_bytes<'a>(
             let (input_, elements) = parse_section!(
                 "$Elements",
                 "$EndElements",
-                |i| context("Element section content", parse_element_section(&header))(i),
+                |i| static_context("Element section content", parse_element_section(&header))(i),
                 input
             )?;
 
