@@ -9,10 +9,6 @@ use nom::{HexDisplay, IResult};
 
 /// Contains error message strings used in the library
 pub(crate) mod error_strings {
-    pub(crate) static MSH_VERSION_UNSUPPORTED: &'static str =
-        "MSH file of unsupported version loaded. Only the MSH file format specification of version 4.1 is supported.";
-    pub(crate) static SECTION_HEADER_INVALID: &'static str =
-        "Unexpected tokens found after file header. Expected a section according to the MSH file format specification.";
     pub(crate) static ELEMENT_UNKNOWN: &'static str =
         "An unknown element type was encountered in the MSH file.";
     pub(crate) static ELEMENT_NUM_NODES_UNKNOWN: &'static str =
@@ -84,14 +80,21 @@ where
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, thiserror::Error)]
 pub enum MshParserErrorKind {
+    #[error("MSH file of unsupported version loaded. Only the MSH file format specification of version 4.1 is supported.")]
     MshVersionUnsupported,
+    #[error("Unexpected tokens found after file header. Expected a section according to the MSH file format specification.")]
     SectionHeaderInvalid,
+    #[error("An unknown element type was encountered in the MSH file.")]
     ElementUnknown,
+    #[error("Unimplemented: The number of nodes for an element encountered in the MSH file does not belong to a known element type.")]
     ElementNumNodesUnknown,
+    #[error("{0}")]
     OwnedContext(String),
+    #[error("{0}")]
     StaticContext(&'static str),
+    #[error("{0:?}")]
     NomVerbose(VerboseErrorKind),
 }
 
@@ -155,6 +158,11 @@ impl<I> MshParserError<I> {
     pub fn begin_msh_errors(&self) -> impl Iterator<Item = &(I, MshParserErrorKind)> {
         self.backtrace.iter().skip_while(|(_, e)| e.is_nom_error())
     }
+
+    /// Returns the first error in the backtrace that is not an internal nom error
+    pub fn first_msh_error(&self) -> Option<MshParserErrorKind> {
+        self.begin_msh_errors().next().map(|(_, ek)| ek).cloned()
+    }
 }
 
 impl<I: Clone> MshParserError<I> {
@@ -172,7 +180,7 @@ impl<I: Debug> Debug for MshParserError<I> {
 
 impl<I: Debug + HexDisplay + ?Sized> Display for MshParserError<&I> {
     // TODO: Move this to a "report" method of the error.
-    // TODO: Instead make Display implementation more simple.
+    // TODO: Instead, make Display implementation more simple.
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // Remove all internal nom errors
         let backtrace = self.trimmed_backtrace();
@@ -182,16 +190,16 @@ impl<I: Debug + HexDisplay + ?Sized> Display for MshParserError<&I> {
                 if let Some(c) = ek.context() {
                     write!(f, "\tin {},\n", c)?;
                 } else {
-                    write!(f, "\tin {:?},\n", ek)?;
+                    write!(f, "\tin {},\n", ek)?;
                 }
             }
             write!(f, "an error occurred: ")?;
-            write!(f, "{:?}\n", backtrace[0].1)?;
-            write!(f, "Hex dump:\n{}", backtrace[0].0.to_hex(16))?;
+            write!(f, "{}\n", backtrace[0].1)?;
+            write!(f, "Hex dump of the file at the error location:\n{}", backtrace[0].0.to_hex(16))?;
             Ok(())
         } else if backtrace.len() == 1 {
-            write!(f, "During parsing an error occurred: ")?;
-            write!(f, "{:?}", backtrace[0].1)?;
+            write!(f, "An error occurred during: ")?;
+            write!(f, "{}", backtrace[0].1)?;
             Ok(())
         } else {
             write!(f, "Unknown error occurred\n")
