@@ -7,12 +7,20 @@ use nom::IResult;
 
 /// Contains error message strings used in the library
 pub(crate) mod error_strings {
-    pub(crate) static MSH_VERSION_UNSUPPORTED: &'static str = "MSH file of unsupported version loaded. Only the MSH file format specification of version 4.1 is supported.";
-    pub(crate) static SECTION_HEADER_INVALID: &'static str = "Unexpected tokens found after file header. Expected a section according to the MSH file format specification.";
+    pub(crate) static MSH_VERSION_UNSUPPORTED: &'static str =
+        "MSH file of unsupported version loaded. Only the MSH file format specification of version 4.1 is supported.";
+    pub(crate) static SECTION_HEADER_INVALID: &'static str =
+        "Unexpected tokens found after file header. Expected a section according to the MSH file format specification.";
     pub(crate) static ELEMENT_UNKNOWN: &'static str =
         "An unknown element type was encountered in the MSH file.";
     pub(crate) static ELEMENT_NUM_NODES_UNKNOWN: &'static str =
-        "Unimplemented: The number of nodes for an element encountered in the MSH file is unknown.";
+        "Unimplemented: The number of nodes for an element encountered in the MSH file does not belong to a known element type.";
+    pub(crate) static UINT_PARSING_ERROR: &'static str =
+        "Parsing of an unsigned integer failed. The target data type may be too small to hold a value encountered in the MSH file.";
+    pub(crate) static INT_PARSING_ERROR: &'static str =
+        "Parsing of an integer failed. The target data type may be too small to hold a value encountered in the MSH file.";
+    pub(crate) static FLOAT_PARSING_ERROR: &'static str =
+        "Parsing of a float failed. The target data type may be too small to hold a value encountered in the MSH file.";
 }
 
 /// Creates a nom ParseError with a context message without invoking another parser
