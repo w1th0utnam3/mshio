@@ -52,7 +52,6 @@ use std::str;
 use nom::bytes::complete::tag;
 use nom::character::complete::{alpha0, char};
 use nom::combinator::peek;
-use nom::error::{context, ErrorKind, ParseError};
 use nom::sequence::{delimited, preceded, terminated};
 use nom::IResult;
 
@@ -71,7 +70,8 @@ pub use error::MshParserError;
 /// Re-exports all types that are used to represent the structure of an MSH file
 pub use mshfile::*;
 
-use error::{create_error, error_strings};
+use crate::error::MshParserErrorKind;
+use error::{create_error, context};
 use parsers::{br, take_sp};
 use parsers::{
     parse_element_section, parse_entity_section, parse_header_section, parse_node_section,
@@ -105,7 +105,7 @@ impl<'a> TryFrom<&'a [u8]> for MshFile<usize, i32, f64> {
     type Error = MshParserError<&'a [u8]>;
 
     fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
-        match private_parse_msh_bytes::<MshParserError<_>>(value) {
+        match private_parse_msh_bytes(value) {
             Ok((_, file)) => Ok(file),
             Err(e) => Err(e.into()),
         }
@@ -121,9 +121,9 @@ pub fn parse_msh_bytes<'a>(
     input.try_into()
 }
 
-fn private_parse_msh_bytes<'a, E: ParseError<&'a [u8]>>(
+fn private_parse_msh_bytes<'a>(
     input: &'a [u8],
-) -> IResult<&'a [u8], MshFile<usize, i32, f64>, E> {
+) -> IResult<&'a [u8], MshFile<usize, i32, f64>, MshParserError<&'a [u8]>> {
     let (input, header) = context(
         "MSH file header section",
         parsers::parse_delimited_block(
@@ -210,7 +210,7 @@ fn private_parse_msh_bytes<'a, E: ParseError<&'a [u8]>>(
         }
         // Check for invalid lines
         else {
-            return create_error(error_strings::SECTION_HEADER_INVALID, ErrorKind::Tag)(input);
+            return create_error(MshParserErrorKind::SectionHeaderInvalid)(input);
         }
     }
 

@@ -23,7 +23,8 @@ where
         let (input, num_volumes) = size_t_parser(input)?;
 
         let int_parser = num_parsers::int_parser::<i32, _>(header.int_size, header.endianness);
-        let double_parser = num_parsers::float_parser::<f64, _>(header.float_size, header.endianness);
+        let double_parser =
+            num_parsers::float_parser::<f64, _>(header.float_size, header.endianness);
 
         let (input, points) = context(
             "Point entity section",

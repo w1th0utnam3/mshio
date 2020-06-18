@@ -5,7 +5,7 @@ use nom::multi::count;
 use nom::IResult;
 use num_traits::FromPrimitive;
 
-use crate::error::{create_error, error_strings};
+use crate::error::{create_nom_error, error_strings};
 use crate::mshfile::{Element, ElementBlock, ElementType, Elements, MshHeader, MshIntT, MshUsizeT};
 use crate::parsers::num_parsers;
 
@@ -68,7 +68,7 @@ where
 
     match ElementType::from_i32(element_type_raw) {
         Some(element_type) => Ok((input, element_type)),
-        None => create_error(error_strings::ELEMENT_UNKNOWN, ErrorKind::Tag)(input),
+        None => create_nom_error(error_strings::ELEMENT_UNKNOWN, ErrorKind::Tag)(input),
     }
 }
 
@@ -99,7 +99,9 @@ where
     let num_nodes = match element_type.nodes() {
         Ok(v) => v,
         Err(_) => {
-            return create_error(error_strings::ELEMENT_NUM_NODES_UNKNOWN, ErrorKind::Tag)(input);
+            return create_nom_error(error_strings::ELEMENT_NUM_NODES_UNKNOWN, ErrorKind::Tag)(
+                input,
+            );
         }
     };
 

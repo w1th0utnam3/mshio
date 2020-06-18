@@ -8,7 +8,7 @@ use nom::number::Endianness;
 use nom::sequence::{delimited, preceded};
 use nom::IResult;
 
-use crate::error::{create_error, error_strings};
+use crate::error::{create_nom_error, error_strings};
 use crate::mshfile::MshHeader;
 use crate::parsers::{br, sp};
 
@@ -20,7 +20,7 @@ pub(crate) fn parse_header_section<'a, E: ParseError<&'a [u8]>>(
     let (input, version) = numbers::double(input)?;
 
     if version != 4.1 {
-        return create_error(error_strings::MSH_VERSION_UNSUPPORTED, ErrorKind::Tag)(input);
+        return create_nom_error(error_strings::MSH_VERSION_UNSUPPORTED, ErrorKind::Tag)(input);
     }
 
     let (input, file_type) = preceded(sp, map(digit1, from_u8))(input)?;

@@ -24,7 +24,8 @@ where
         let (input, max_node_tag) = size_t_parser(input)?;
 
         let int_parser = num_parsers::int_parser::<i32, _>(header.int_size, header.endianness);
-        let double_parser = num_parsers::float_parser::<f64, _>(header.float_size, header.endianness);
+        let double_parser =
+            num_parsers::float_parser::<f64, _>(header.float_size, header.endianness);
 
         let sparse_tags = if min_node_tag == 0 {
             panic!("Node tag 0 is reserved for internal use");

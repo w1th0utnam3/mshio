@@ -12,7 +12,7 @@ use nom::IResult;
 use num::Integer;
 use num_traits::{Float, NumCast, Signed, Unsigned};
 
-use crate::error::{create_error, error_strings};
+use crate::error::{create_nom_error, error_strings};
 use crate::parsers::{recognize_integer, ws};
 
 pub fn uint_parser<'a, T: Unsigned + Integer + NumCast + str::FromStr, E: ParseError<&'a [u8]>>(
@@ -32,7 +32,7 @@ pub fn uint_parser<'a, T: Unsigned + Integer + NumCast + str::FromStr, E: ParseE
                     if let Some(v) = T::from(v) {
                         Ok(((i, v)))
                     } else {
-                        create_error(error_strings::UINT_PARSING_ERROR, ErrorKind::ParseTo)(i)
+                        create_nom_error(error_strings::UINT_PARSING_ERROR, ErrorKind::ParseTo)(i)
                     }
                 }
                 Err(e) => Err(e),
@@ -75,7 +75,7 @@ pub fn uint_parser<'a, T: Unsigned + Integer + NumCast + str::FromStr, E: ParseE
                 Ok((i, v)) => match v {
                     Ok(v) => Ok((i, v)),
                     Err(_) => {
-                        create_error(error_strings::UINT_PARSING_ERROR, ErrorKind::ParseTo)(i)
+                        create_nom_error(error_strings::UINT_PARSING_ERROR, ErrorKind::ParseTo)(i)
                     }
                 },
                 Err(e) => Err(e),
@@ -105,7 +105,7 @@ pub fn int_parser<'a, T: Signed + Integer + NumCast + str::FromStr, E: ParseErro
                     if let Some(v) = T::from(v) {
                         Ok(((i, v)))
                     } else {
-                        create_error(error_strings::INT_PARSING_ERROR, ErrorKind::ParseTo)(i)
+                        create_nom_error(error_strings::INT_PARSING_ERROR, ErrorKind::ParseTo)(i)
                     }
                 }
                 Err(e) => Err(e),
@@ -147,7 +147,9 @@ pub fn int_parser<'a, T: Signed + Integer + NumCast + str::FromStr, E: ParseErro
             {
                 Ok((i, v)) => match v {
                     Ok(v) => Ok((i, v)),
-                    Err(_) => create_error(error_strings::INT_PARSING_ERROR, ErrorKind::ParseTo)(i),
+                    Err(_) => {
+                        create_nom_error(error_strings::INT_PARSING_ERROR, ErrorKind::ParseTo)(i)
+                    }
                 },
                 Err(e) => Err(e),
             }) as fn(&'a [u8]) -> IResult<&'a [u8], T, E>
@@ -176,7 +178,7 @@ pub fn float_parser<'a, T: Float + NumCast, E: ParseError<&'a [u8]>>(
                     if let Some(v) = T::from(v) {
                         Ok(((i, v)))
                     } else {
-                        create_error(error_strings::FLOAT_PARSING_ERROR, ErrorKind::ParseTo)(i)
+                        create_nom_error(error_strings::FLOAT_PARSING_ERROR, ErrorKind::ParseTo)(i)
                     }
                 }
                 Err(e) => Err(e),
@@ -211,7 +213,7 @@ pub fn float_parser<'a, T: Float + NumCast, E: ParseError<&'a [u8]>>(
                     if let Some(v) = T::from(v) {
                         Ok((i, v))
                     } else {
-                        create_error(error_strings::FLOAT_PARSING_ERROR, ErrorKind::ParseTo)(i)
+                        create_nom_error(error_strings::FLOAT_PARSING_ERROR, ErrorKind::ParseTo)(i)
                     }
                 }
                 Err(e) => Err(e),
