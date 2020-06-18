@@ -253,7 +253,7 @@ macro_rules! generate_num_parser_oversized_values_test {
                 ($endianness:expr, $big_input:expr, $small_input:expr) => {
                     // Ensure: large value input -> large type: works
                     {
-                        let parser = $parser_name::<$large_type, VerboseError<_>>(
+                        let parser = $parser_name::<$large_type>(
                             std::mem::size_of::<$large_type>(),
                             $endianness,
                         );
@@ -264,7 +264,7 @@ macro_rules! generate_num_parser_oversized_values_test {
 
                     // Ensure: large value input -> smaller type: error
                     {
-                        let parser = $parser_name::<$small_type, VerboseError<_>>(
+                        let parser = $parser_name::<$small_type>(
                             std::mem::size_of::<$large_type>(),
                             $endianness,
                         );
@@ -274,7 +274,7 @@ macro_rules! generate_num_parser_oversized_values_test {
 
                     // Ensure: small value input -> smaller type: works
                     {
-                        let parser = $parser_name::<$small_type, VerboseError<_>>(
+                        let parser = $parser_name::<$small_type>(
                             std::mem::size_of::<$large_type>(),
                             $endianness,
                         );
