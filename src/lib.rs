@@ -52,7 +52,7 @@ use std::str;
 use nom::bytes::complete::tag;
 use nom::character::complete::{alpha0, char};
 use nom::combinator::peek;
-use nom::error::{context, ErrorKind, ParseError, VerboseError};
+use nom::error::{context, ErrorKind, ParseError};
 use nom::sequence::{delimited, preceded, terminated};
 use nom::IResult;
 
@@ -78,6 +78,7 @@ use parsers::{
 };
 
 // TODO: Implement parser for physical groups
+// TODO: Log in the MeshData what sections were ignored
 // TODO: Replace panic!, unimplemented!, unwrap and expect calls with Err
 // TODO: Add more context calls for all levels of parsers
 // TODO: Review the passing of primitive parser functions as generic parameters (don't support Copy)
@@ -104,7 +105,7 @@ impl<'a> TryFrom<&'a [u8]> for MshFile<usize, i32, f64> {
     type Error = MshParserError<&'a [u8]>;
 
     fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
-        match private_parse_msh_bytes::<VerboseError<_>>(value) {
+        match private_parse_msh_bytes::<MshParserError<_>>(value) {
             Ok((_, file)) => Ok(file),
             Err(e) => Err(e.into()),
         }

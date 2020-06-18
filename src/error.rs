@@ -33,57 +33,112 @@ pub(crate) fn create_error<I: Clone, E: ParseError<I>, O>(
     })
 }
 
+#[derive(Debug)]
+pub enum MshParserErrorKind {
+    MshVersionUnsupported,
+    SectionHeaderInvalid,
+    ElementUnknown,
+    ElementNumNodesUnknown,
+    NomVerbose(VerboseErrorKind),
+}
+
+impl From<VerboseErrorKind> for MshParserErrorKind {
+    fn from(ek: VerboseErrorKind) -> Self {
+        MshParserErrorKind::NomVerbose(ek)
+    }
+}
+
 /// Error type returned by the MSH parser if parsing fails without panic
 pub struct MshParserError<I> {
-    /// The internal error returned by nom
-    pub details: nom::Err<VerboseError<I>>,
+    /// The error backtrace
+    pub errors: Vec<(I, MshParserErrorKind)>,
+}
+
+impl<I> MshParserError<I> {
+    fn new() -> Self {
+        Self { errors: Vec::new() }
+    }
 }
 
 impl<I: Debug> Debug for MshParserError<I> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "MshParserError({:?})", self.details)
+        write!(f, "MshParserError({:?})", self.errors)
     }
 }
 
 impl<I: Debug> Display for MshParserError<I> {
+    // TODO: Adapt this implementation for the new error type
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.details {
-            nom::Err::Error(ve) | nom::Err::Failure(ve) => {
-                if ve.errors.len() > 2 {
-                    write!(f, "During parsing...\n")?;
-                    for (_, ek) in ve.errors[2..].iter().rev() {
-                        if let VerboseErrorKind::Context(c) = ek {
-                            write!(f, "\tin {},\n", c)?;
-                        }
-                    }
-                    write!(f, "an error occured: ")?;
-                    if let VerboseErrorKind::Context(c) = ve.errors[1].1 {
-                        write!(f, "{}", c)?;
-                    } else {
-                        write!(f, "Unknown error ({:?}).", ve.errors[1].1)?;
-                    }
-                    Ok(())
-                } else if ve.errors.len() == 2 {
-                    write!(f, "During parsing an error occured: ")?;
-                    if let VerboseErrorKind::Context(c) = ve.errors[1].1 {
-                        write!(f, "{}", c)
-                    } else {
-                        write!(f, "Unknown error ({:?})", ve.errors[1].1)
-                    }
-                } else {
-                    write!(f, "Unknown error")
+        /*
+        if self.errors.len() > 2 {
+            write!(f, "During parsing...\n")?;
+            for (_, ek) in self.errors[2..].iter().rev() {
+                if let VerboseErrorKind::Context(c) = ek {
+                    write!(f, "\tin {},\n", c)?;
                 }
             }
-            _ => write!(f, "Unknown error"),
+            write!(f, "an error occured: ")?;
+            if let VerboseErrorKind::Context(c) = self.errors[1].1 {
+                write!(f, "{}", c)?;
+            } else {
+                write!(f, "Unknown error ({:?}).", self.errors[1].1)?;
+            }
+            Ok(())
+        } else if self.errors.len() == 2 {
+            write!(f, "During parsing an error occured: ")?;
+            if let VerboseErrorKind::Context(c) = self.errors[1].1 {
+                write!(f, "{}", c)
+            } else {
+                write!(f, "Unknown error ({:?})", self.errors[1].1)
+            }
+        } else {
+            write!(f, "Unknown error")
         }
+        */
+        write!(f, "Unknown error")
+    }
+}
+
+impl<I> ParseError<I> for MshParserError<I> {
+    fn from_error_kind(input: I, kind: ErrorKind) -> Self {
+        Self {
+            errors: vec![(input, MshParserErrorKind::NomVerbose(VerboseErrorKind::Nom(kind)))],
+        }
+    }
+
+    fn append(input: I, kind: ErrorKind, mut other: Self) -> Self {
+        other.errors.push((input, MshParserErrorKind::NomVerbose(VerboseErrorKind::Nom(kind))));
+        other
+    }
+
+    fn from_char(input: I, c: char) -> Self {
+        Self {
+            errors: vec![(input, MshParserErrorKind::NomVerbose(VerboseErrorKind::Char(c)))],
+        }
+    }
+
+    fn add_context(input: I, ctx: &'static str, mut other: Self) -> Self {
+        other.errors.push((input, MshParserErrorKind::NomVerbose(VerboseErrorKind::Context(ctx))));
+        other
     }
 }
 
 impl<I: Debug> Error for MshParserError<I> {}
 
+impl<I: Debug> From<VerboseError<I>> for MshParserError<I> {
+    fn from(e: VerboseError<I>) -> Self {
+        MshParserError {
+            errors: e.errors.into_iter().map(|(i, ek)| (i, ek.into())).collect(),
+        }
+    }
+}
+
 /// Convert a nom VerboseError to MshParserError
-impl<I: Debug> From<nom::Err<VerboseError<I>>> for MshParserError<I> {
-    fn from(error: nom::Err<VerboseError<I>>) -> Self {
-        MshParserError { details: error }
+impl<I: Debug, E: Into<MshParserError<I>>> From<nom::Err<E>> for MshParserError<I> {
+    fn from(error: nom::Err<E>) -> Self {
+        match error {
+            nom::Err::Error(ve) | nom::Err::Failure(ve) => ve.into(),
+            _ => Self::new(),
+        }
     }
 }
