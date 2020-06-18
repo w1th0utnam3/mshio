@@ -59,7 +59,9 @@ where
 {
     let (input_new, element_type_raw) = int_parser(input)?;
     let element_type_raw = element_type_raw.to_i32().ok_or_else(|| {
-        MshParserError::from_error_kind(input, MshParserErrorKind::ElementUnknown).into_nom_err()
+        MshParserErrorKind::ElementUnknown
+            .into_error(input)
+            .into_nom_error()
     })?;
 
     match ElementType::from_i32(element_type_raw) {
@@ -89,7 +91,8 @@ where
 
     // Try to convert number of elements to usize
     let num_elements_in_block = num_elements_in_block.to_usize().ok_or_else(|| {
-        MshParserError::from_error_kind(input.clone(), MshParserErrorKind::TooManyEntities)
+        MshParserErrorKind::TooManyEntities
+            .into_error(input.clone())
             .with_context(
                 input.clone(),
                 format!(
@@ -97,7 +100,7 @@ where
                     num_elements_in_block
                 ),
             )
-            .into_nom_err()
+            .into_nom_error()
     })?;
 
     // Try to get the number of nodes per element
