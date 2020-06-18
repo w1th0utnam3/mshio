@@ -78,7 +78,7 @@ use parsers::{
 };
 
 // TODO: Implement parser for physical groups
-// TODO: Replace panics and unimplemented! calls with Err
+// TODO: Replace panic!, unimplemented!, unwrap and expect calls with Err
 // TODO: Add more context calls for all levels of parsers
 // TODO: Review the passing of primitive parser functions as generic parameters (don't support Copy)
 
@@ -86,8 +86,10 @@ use parsers::{
 // TODO: Global static strings for error context
 // TODO: Map static string error context back to error enum variants
 
-// TODO: Allow parsing usize=u64 indexed meshes on usize=u32 machines and only return an error
-//  if there are actually too many elements/nodes (because then Vec cannot hold them all)
+// TODO: Add checks to ensure that an error is returned if number of nodes/elements etc.
+//  is larger than usize::MAX
+// TODO: Replace some default usage in parser of usize with u64
+// TODO: Add tests that try to parse a mesh with u64 indices to u32
 
 /// Debug helper to view u8 slice as utf8 str and print it
 #[allow(dead_code)]
