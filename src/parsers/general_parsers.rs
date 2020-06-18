@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take, take_while};
 use nom::character::complete::{char, digit1};
@@ -293,6 +295,41 @@ where
 
         let (_, out) = parser(content)?;
 
+        Ok((input, out))
+    }
+}
+
+/// ```
+/// use nom::character::complete::digit0;
+/// use nom::Err;
+/// use nom::error::{ErrorKind, ParseError};
+///
+/// use mshio::parsers::verify_or;
+/// let parser = verify_or::<_,_,_,(_,_),_,_,_>(digit0, |s: &str| s.len() < 4, |i| Err(Err::Error((i, ErrorKind::LengthValue))));
+///
+/// assert_eq!(parser(""), Ok(("", "")));
+/// assert_eq!(parser("123a"), Ok(("a", "123")));
+/// assert_eq!(parser("12345a"), Err(Err::Error(("12345a", ErrorKind::LengthValue))));
+/// ```
+pub fn verify_or<I, O1, O2, E: ParseError<I>, F, G, H>(
+    parser: F,
+    validator: G,
+    alt_parser: H,
+) -> impl Fn(I) -> IResult<I, O1, E>
+where
+    I: Clone + nom::InputIter,
+    O1: Borrow<O2>,
+    O2: ?Sized,
+    F: Fn(I) -> IResult<I, O1, E>,
+    G: Fn(&O2) -> bool,
+    H: Fn(I) -> IResult<I, O1, E>
+{
+    move |input: I| {
+        let i = input.clone();
+        let (input, out) = parser(input)?;
+        if !validator(out.borrow()) {
+            return alt_parser(i);
+        }
         Ok((input, out))
     }
 }
