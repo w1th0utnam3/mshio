@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use nom::error::ParseError;
 use nom::multi::count;
 use nom::IResult;
+use num::cast::ToPrimitive;
 
 use crate::error::MshParserError;
 use crate::mshfile::{MshFloatT, MshHeader, MshIntT, MshUsizeT, Node, NodeBlock, Nodes};
@@ -10,12 +11,10 @@ use crate::parsers::num_parsers;
 
 pub(crate) fn parse_node_section<'a, 'b: 'a>(
     header: &'a MshHeader,
-) -> impl Fn(&'b [u8]) -> IResult<&'b [u8], Nodes<usize, i32, f64>, MshParserError<&'b [u8]>>
-{
+) -> impl Fn(&'b [u8]) -> IResult<&'b [u8], Nodes<u64, i32, f64>, MshParserError<&'b [u8]>> {
     let header = header.clone();
     move |input| {
-        let size_t_parser =
-            num_parsers::uint_parser::<usize>(header.size_t_size, header.endianness);
+        let size_t_parser = num_parsers::uint_parser::<u64>(header.size_t_size, header.endianness);
 
         let (input, num_entity_blocks) = size_t_parser(input)?;
         let (input, num_nodes) = size_t_parser(input)?;
@@ -35,7 +34,7 @@ pub(crate) fn parse_node_section<'a, 'b: 'a>(
 
         let (input, node_entity_blocks) = count(
             |i| parse_node_entity(size_t_parser, int_parser, double_parser, sparse_tags, i),
-            num_entity_blocks,
+            num_entity_blocks.to_usize().unwrap(), // TODO,
         )(input)?;
 
         Ok((

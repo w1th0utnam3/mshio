@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use nom::multi::count;
 use nom::IResult;
-use num_traits::FromPrimitive;
+use num::traits::{FromPrimitive, ToPrimitive};
 
 use crate::error::{error, MshParserCompatibleError, MshParserError, MshParserErrorKind};
 use crate::mshfile::{Element, ElementBlock, ElementType, Elements, MshHeader, MshIntT, MshUsizeT};
@@ -10,11 +10,10 @@ use crate::parsers::num_parsers;
 
 pub(crate) fn parse_element_section<'a, 'b: 'a>(
     header: &'a MshHeader,
-) -> impl Fn(&'b [u8]) -> IResult<&'b [u8], Elements<usize, i32>, MshParserError<&'b [u8]>> {
+) -> impl Fn(&'b [u8]) -> IResult<&'b [u8], Elements<u64, i32>, MshParserError<&'b [u8]>> {
     let header = header.clone();
     move |input| {
-        let size_t_parser =
-            num_parsers::uint_parser::<usize>(header.size_t_size, header.endianness);
+        let size_t_parser = num_parsers::uint_parser::<u64>(header.size_t_size, header.endianness);
 
         let (input, num_entity_blocks) = size_t_parser(input)?;
         let (input, num_elements) = size_t_parser(input)?;
@@ -33,7 +32,7 @@ pub(crate) fn parse_element_section<'a, 'b: 'a>(
 
         let (input, element_entity_blocks) = count(
             |i| parse_element_entity(size_t_parser, int_parser, sparse_tags, i),
-            num_entity_blocks,
+            num_entity_blocks.to_usize().unwrap(), // TODO,
         )(input)?;
 
         Ok((

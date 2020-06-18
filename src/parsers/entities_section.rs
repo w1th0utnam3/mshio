@@ -1,6 +1,7 @@
 use nom::error::{context, ParseError};
 use nom::multi::count;
 use nom::IResult;
+use num::cast::ToPrimitive;
 
 use crate::error::MshParserError;
 use crate::mshfile::{
@@ -13,8 +14,7 @@ pub(crate) fn parse_entity_section<'a, 'b: 'a>(
 ) -> impl Fn(&'b [u8]) -> IResult<&'b [u8], Entities<i32, f64>, MshParserError<&'b [u8]>> {
     let header = header.clone();
     move |input| {
-        let size_t_parser =
-            num_parsers::uint_parser::<usize>(header.size_t_size, header.endianness);
+        let size_t_parser = num_parsers::uint_parser::<u64>(header.size_t_size, header.endianness);
         let (input, num_points) = size_t_parser(input)?;
         let (input, num_curves) = size_t_parser(input)?;
         let (input, num_surfaces) = size_t_parser(input)?;
@@ -27,7 +27,7 @@ pub(crate) fn parse_entity_section<'a, 'b: 'a>(
             "Point entity section",
             count(
                 |i| parse_point(size_t_parser, int_parser, double_parser, i),
-                num_points,
+                num_points.to_usize().unwrap(), // TODO,
             ),
         )(input)?;
 
@@ -35,7 +35,7 @@ pub(crate) fn parse_entity_section<'a, 'b: 'a>(
             "Curve entity section",
             count(
                 |i| parse_curve(size_t_parser, int_parser, double_parser, i),
-                num_curves,
+                num_curves.to_usize().unwrap(), // TODO,
             ),
         )(input)?;
 
@@ -43,7 +43,7 @@ pub(crate) fn parse_entity_section<'a, 'b: 'a>(
             "Surface entity section",
             count(
                 |i| parse_surface(size_t_parser, int_parser, double_parser, i),
-                num_surfaces,
+                num_surfaces.to_usize().unwrap(), // TODO,
             ),
         )(input)?;
 
@@ -51,7 +51,7 @@ pub(crate) fn parse_entity_section<'a, 'b: 'a>(
             "Volume entity section",
             count(
                 |i| parse_volume(size_t_parser, int_parser, double_parser, i),
-                num_volumes,
+                num_volumes.to_usize().unwrap(), // TODO,
             ),
         )(input)?;
 
