@@ -11,7 +11,7 @@ use nom::IResult;
 use num::Integer;
 use num_traits::{Float, NumCast, Signed, Unsigned};
 
-use crate::error::{error, MshParserError, MshParserErrorKind};
+use crate::error::{error, MshParserError, MshParserErrorKind, ValueType};
 use crate::parsers::{recognize_integer, ws};
 
 pub fn uint_parser<'a, T: Unsigned + Integer + NumCast + str::FromStr>(
@@ -31,7 +31,7 @@ pub fn uint_parser<'a, T: Unsigned + Integer + NumCast + str::FromStr>(
                     if let Some(v) = T::from(v) {
                         Ok(((i, v)))
                     } else {
-                        error(MshParserErrorKind::UnsignedIntegerOutOfRange)(i)
+                        error(MshParserErrorKind::ValueOutOfRange(ValueType::UnsignedInt))(i)
                     }
                 }
                 Err(e) => Err(e),
@@ -73,7 +73,7 @@ pub fn uint_parser<'a, T: Unsigned + Integer + NumCast + str::FromStr>(
             {
                 Ok((i, v)) => match v {
                     Ok(v) => Ok((i, v)),
-                    Err(_) => error(MshParserErrorKind::UnsignedIntegerOutOfRange)(i),
+                    Err(_) => error(MshParserErrorKind::ValueOutOfRange(ValueType::UnsignedInt))(i),
                 },
                 Err(e) => Err(e),
             }) as fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>>
@@ -102,7 +102,7 @@ pub fn int_parser<'a, T: Signed + Integer + NumCast + str::FromStr>(
                     if let Some(v) = T::from(v) {
                         Ok(((i, v)))
                     } else {
-                        error(MshParserErrorKind::IntegerOutOfRange)(i)
+                        error(MshParserErrorKind::ValueOutOfRange(ValueType::Int))(i)
                     }
                 }
                 Err(e) => Err(e),
@@ -144,7 +144,7 @@ pub fn int_parser<'a, T: Signed + Integer + NumCast + str::FromStr>(
             {
                 Ok((i, v)) => match v {
                     Ok(v) => Ok((i, v)),
-                    Err(_) => error(MshParserErrorKind::IntegerOutOfRange)(i),
+                    Err(_) => error(MshParserErrorKind::ValueOutOfRange(ValueType::Int))(i),
                 },
                 Err(e) => Err(e),
             }) as fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>>
@@ -173,7 +173,7 @@ pub fn float_parser<'a, T: Float + NumCast>(
                     if let Some(v) = T::from(v) {
                         Ok(((i, v)))
                     } else {
-                        error(MshParserErrorKind::FloatOutOfRange)(i)
+                        error(MshParserErrorKind::ValueOutOfRange(ValueType::Float))(i)
                     }
                 }
                 Err(e) => Err(e),
@@ -208,7 +208,7 @@ pub fn float_parser<'a, T: Float + NumCast>(
                     if let Some(v) = T::from(v) {
                         Ok((i, v))
                     } else {
-                        error(MshParserErrorKind::FloatOutOfRange)(i)
+                        error(MshParserErrorKind::ValueOutOfRange(ValueType::Float))(i)
                     }
                 }
                 Err(e) => Err(e),

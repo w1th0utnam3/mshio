@@ -63,6 +63,17 @@ where
     }
 }
 
+#[derive(Copy, Clone, Debug, thiserror::Error)]
+pub enum ValueType {
+    #[error("unsigned integer")]
+    UnsignedInt,
+    #[error("integer")]
+    Int,
+    #[error("floating point")]
+    Float,
+}
+
+#[rustfmt::skip]
 #[derive(Clone, Debug, thiserror::Error)]
 pub enum MshParserErrorKind {
     #[error("MSH file of unsupported version loaded. Only the MSH file format specification of version 4.1 is supported.")]
@@ -75,14 +86,8 @@ pub enum MshParserErrorKind {
     ElementNumNodesUnknown,
     #[error("There are too many entities to parse them into contiguous memory on the current system (usize type too small).")]
     TooManyEntities,
-    #[error("An unsigned integer value could not be parsed because it was out of range of the target data type.")]
-    UnsignedIntegerOutOfRange,
-    #[error(
-        "An integer value could not be parsed because it was out of range of the target data type."
-    )]
-    IntegerOutOfRange,
-    #[error("A floating point value could not be parsed because it was out of range of the target data type.")]
-    FloatOutOfRange,
+    #[error("A {0} value could not be parsed because it was out of range of the target data type.")]
+    ValueOutOfRange(ValueType),
     #[error("{0}")]
     OwnedContext(String),
     #[error("{0}")]
