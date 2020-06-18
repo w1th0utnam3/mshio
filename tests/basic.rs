@@ -39,12 +39,12 @@ macro_rules! intended_error_output {
 }
 
 #[test]
-fn does_nothing() {
+fn test_does_nothing() {
     assert!(true);
 }
 
 #[test]
-fn simple_bin_file() {
+fn test_simple_bin_file() {
     let circle_2d_bin = read_bytes("tests/circle_2d_bin.msh");
     assert!(msh_parses(&circle_2d_bin));
 
@@ -58,7 +58,7 @@ fn simple_bin_file() {
 }
 
 #[test]
-fn simple_ascii_file() {
+fn test_simple_ascii_file() {
     let circle_2d = read_bytes("tests/circle_2d.msh");
     assert!(msh_parses(&circle_2d));
 
@@ -72,7 +72,13 @@ fn simple_ascii_file() {
 }
 
 #[test]
-fn compare_simple_ascii_bin() {
+fn test_simple_ascii_file_error() {
+    let circle_2d = read_bytes("tests/circle_2d_error.msh");
+    intended_error_output!(assert!(!msh_parses(&circle_2d)));
+}
+
+#[test]
+fn test_compare_simple_ascii_bin() {
     let circle_2d_bin_raw = read_bytes("tests/circle_2d_bin.msh");
     let circle_2d_raw = read_bytes("tests/circle_2d.msh");
 
@@ -84,7 +90,7 @@ fn compare_simple_ascii_bin() {
 }
 
 #[test]
-fn fine_bin_file() {
+fn test_fine_bin_file() {
     let circle_2d_bin = read_bytes("tests/circle_2d_fine_bin.msh");
     assert!(msh_parses(&circle_2d_bin));
 
@@ -98,7 +104,7 @@ fn fine_bin_file() {
 }
 
 #[test]
-fn t13_bin_file() {
+fn test_t13_bin_file() {
     let msh_bin = read_bytes("tests/t13_data.msh");
     assert!(msh_parses(&msh_bin));
 
@@ -113,7 +119,7 @@ fn t13_bin_file() {
 }
 
 #[test]
-fn cylinder_bin_file() {
+fn test_cylinder_bin_file() {
     let msh_bin = read_bytes("tests/cylinder_3d.msh");
     assert!(msh_parses(&msh_bin));
 
@@ -127,7 +133,7 @@ fn cylinder_bin_file() {
 }
 
 #[test]
-fn sphere_point_entities_file_ascii() {
+fn test_sphere_point_entities_file_ascii() {
     let msh_bin = read_bytes("tests/sphere_coarse.msh");
     assert!(msh_parses(&msh_bin));
 
@@ -149,7 +155,7 @@ fn sphere_point_entities_file_ascii() {
 }
 
 #[test]
-fn sphere_point_entities_file_bin() {
+fn test_sphere_point_entities_file_bin() {
     let msh_bin = read_bytes("tests/sphere_coarse_bin.msh");
     assert!(msh_parses(&msh_bin));
 
@@ -208,7 +214,7 @@ $MeshFormat
 $EndMeshFormat
 
 ";
-    intended_error_output!(!msh_parses(msh.as_bytes()));
+    intended_error_output!(assert!(!msh_parses(msh.as_bytes())));
 }
 
 #[test]
@@ -218,7 +224,7 @@ fn test_old_msh_version_bin() {
 }
 
 #[test]
-fn coarse_bike_file() {
+fn test_coarse_bike_file() {
     let msh = read_bytes("tests/bike_coarse.obj_linear.msh");
     assert!(msh_parses(&msh));
 
@@ -232,7 +238,7 @@ fn coarse_bike_file() {
 }
 
 #[test]
-fn fine_bike_file() {
+fn test_fine_bike_file() {
     let msh = read_bytes("tests/bike_original.obj_linear.msh");
     assert!(msh_parses(&msh));
 
@@ -246,7 +252,7 @@ fn fine_bike_file() {
 }
 
 #[test]
-fn fine_bike_curved_file() {
+fn test_fine_bike_curved_file() {
     let msh = read_bytes("tests/bike_original.obj_curved.msh");
     assert!(msh_parses(&msh));
 
