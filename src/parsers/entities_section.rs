@@ -2,29 +2,26 @@ use nom::error::{context, ParseError};
 use nom::multi::count;
 use nom::IResult;
 
+use crate::error::MshParserError;
 use crate::mshfile::{
     Curve, Entities, MshFloatT, MshHeader, MshIntT, MshUsizeT, Point, Surface, Volume,
 };
 use crate::parsers::num_parsers;
 
-pub(crate) fn parse_entity_section<'a, 'b: 'a, E>(
+pub(crate) fn parse_entity_section<'a, 'b: 'a>(
     header: &'a MshHeader,
-) -> impl Fn(&'b [u8]) -> IResult<&'b [u8], Entities<i32, f64>, E>
-where
-    E: ParseError<&'b [u8]>,
-{
+) -> impl Fn(&'b [u8]) -> IResult<&'b [u8], Entities<i32, f64>, MshParserError<&'b [u8]>> {
     let header = header.clone();
     move |input| {
         let size_t_parser =
-            num_parsers::uint_parser::<usize, _>(header.size_t_size, header.endianness);
+            num_parsers::uint_parser::<usize>(header.size_t_size, header.endianness);
         let (input, num_points) = size_t_parser(input)?;
         let (input, num_curves) = size_t_parser(input)?;
         let (input, num_surfaces) = size_t_parser(input)?;
         let (input, num_volumes) = size_t_parser(input)?;
 
-        let int_parser = num_parsers::int_parser::<i32, _>(header.int_size, header.endianness);
-        let double_parser =
-            num_parsers::float_parser::<f64, _>(header.float_size, header.endianness);
+        let int_parser = num_parsers::int_parser::<i32>(header.int_size, header.endianness);
+        let double_parser = num_parsers::float_parser::<f64>(header.float_size, header.endianness);
 
         let (input, points) = context(
             "Point entity section",

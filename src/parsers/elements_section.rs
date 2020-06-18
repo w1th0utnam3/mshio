@@ -14,14 +14,14 @@ pub(crate) fn parse_element_section<'a, 'b: 'a>(
     let header = header.clone();
     move |input| {
         let size_t_parser =
-            num_parsers::uint_parser::<usize, _>(header.size_t_size, header.endianness);
+            num_parsers::uint_parser::<usize>(header.size_t_size, header.endianness);
 
         let (input, num_entity_blocks) = size_t_parser(input)?;
         let (input, num_elements) = size_t_parser(input)?;
         let (input, min_element_tag) = size_t_parser(input)?;
         let (input, max_element_tag) = size_t_parser(input)?;
 
-        let int_parser = num_parsers::int_parser::<i32, _>(header.int_size, header.endianness);
+        let int_parser = num_parsers::int_parser::<i32>(header.int_size, header.endianness);
 
         let sparse_tags = if min_element_tag == 0 {
             panic!("Element tag 0 is reserved for internal use");

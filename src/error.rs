@@ -2,21 +2,12 @@ use std::error::Error;
 use std::fmt;
 use std::fmt::{Debug, Display};
 
-use nom::error::{context as nom_context, ErrorKind, ParseError, VerboseError, VerboseErrorKind};
+use nom::error::{ErrorKind, ParseError, VerboseError, VerboseErrorKind};
 use nom::{HexDisplay, IResult};
 
 // TODO: Think about a better solution than a static_context and owned_context combinator
 
-/// Contains error message strings used in the library
-pub(crate) mod error_strings {
-    pub(crate) static UINT_PARSING_ERROR: &'static str =
-        "Parsing of an unsigned integer failed. The target data type may be too small to hold a value encountered in the MSH file.";
-    pub(crate) static INT_PARSING_ERROR: &'static str =
-        "Parsing of an integer failed. The target data type may be too small to hold a value encountered in the MSH file.";
-    pub(crate) static FLOAT_PARSING_ERROR: &'static str =
-        "Parsing of a float failed. The target data type may be too small to hold a value encountered in the MSH file.";
-}
-
+/*
 /// Returns a combinator that returns a nom ParseError with a context message
 pub(crate) fn nom_error<I: Clone, E: ParseError<I>, O>(
     context_msg: &'static str,
@@ -26,6 +17,7 @@ pub(crate) fn nom_error<I: Clone, E: ParseError<I>, O>(
         Err(nom::Err::Error(ParseError::from_error_kind(i, kind)))
     })
 }
+*/
 
 /// Returns a combinator that returns an error of the specified kind
 pub(crate) fn error<I, O>(
@@ -83,6 +75,14 @@ pub enum MshParserErrorKind {
     ElementNumNodesUnknown,
     #[error("There are too many entities to parse them into contiguous memory on the current system (usize type too small).")]
     TooManyEntities,
+    #[error("An unsigned integer value could not be parsed because it was out of range of the target data type.")]
+    UnsignedIntegerOutOfRange,
+    #[error(
+        "An integer value could not be parsed because it was out of range of the target data type."
+    )]
+    IntegerOutOfRange,
+    #[error("A floating point value could not be parsed because it was out of range of the target data type.")]
+    FloatOutOfRange,
     #[error("{0}")]
     OwnedContext(String),
     #[error("{0}")]

@@ -4,7 +4,6 @@ use nom::character::complete::digit1;
 use nom::combinator::map;
 #[allow(unused)]
 use nom::error::VerboseError;
-use nom::error::{ErrorKind, ParseError};
 use nom::number::complete as numbers;
 use nom::number::Endianness;
 use nom::IResult;
@@ -12,13 +11,13 @@ use nom::IResult;
 use num::Integer;
 use num_traits::{Float, NumCast, Signed, Unsigned};
 
-use crate::error::{error_strings, nom_error};
+use crate::error::{error, MshParserError, MshParserErrorKind};
 use crate::parsers::{recognize_integer, ws};
 
-pub fn uint_parser<'a, T: Unsigned + Integer + NumCast + str::FromStr, E: ParseError<&'a [u8]>>(
+pub fn uint_parser<'a, T: Unsigned + Integer + NumCast + str::FromStr>(
     source_size: usize,
     endianness: Option<Endianness>,
-) -> impl Copy + Fn(&'a [u8]) -> IResult<&'a [u8], T, E> {
+) -> impl Copy + Fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>> {
     /*
     if std::mem::size_of::<T>() < source_size {
         panic!("Input unsigned integer size of {} bytes is too large for target unsigned integer size of {} bytes", source_size, std::mem::size_of::<T>());
@@ -32,11 +31,11 @@ pub fn uint_parser<'a, T: Unsigned + Integer + NumCast + str::FromStr, E: ParseE
                     if let Some(v) = T::from(v) {
                         Ok(((i, v)))
                     } else {
-                        nom_error(error_strings::UINT_PARSING_ERROR, ErrorKind::ParseTo)(i)
+                        error(MshParserErrorKind::UnsignedIntegerOutOfRange)(i)
                     }
                 }
                 Err(e) => Err(e),
-            }) as fn(&'a [u8]) -> IResult<&'a [u8], T, E>
+            }) as fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>>
         };
     }
 
@@ -74,18 +73,18 @@ pub fn uint_parser<'a, T: Unsigned + Integer + NumCast + str::FromStr, E: ParseE
             {
                 Ok((i, v)) => match v {
                     Ok(v) => Ok((i, v)),
-                    Err(_) => nom_error(error_strings::UINT_PARSING_ERROR, ErrorKind::ParseTo)(i),
+                    Err(_) => error(MshParserErrorKind::UnsignedIntegerOutOfRange)(i),
                 },
                 Err(e) => Err(e),
-            }) as fn(&'a [u8]) -> IResult<&'a [u8], T, E>
+            }) as fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>>
         }
     }
 }
 
-pub fn int_parser<'a, T: Signed + Integer + NumCast + str::FromStr, E: ParseError<&'a [u8]>>(
+pub fn int_parser<'a, T: Signed + Integer + NumCast + str::FromStr>(
     source_size: usize,
     endianness: Option<Endianness>,
-) -> impl Copy + Fn(&'a [u8]) -> IResult<&'a [u8], T, E> {
+) -> impl Copy + Fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>> {
     /*
     if std::mem::size_of::<T>() < source_size {
         panic!(
@@ -103,11 +102,11 @@ pub fn int_parser<'a, T: Signed + Integer + NumCast + str::FromStr, E: ParseErro
                     if let Some(v) = T::from(v) {
                         Ok(((i, v)))
                     } else {
-                        nom_error(error_strings::INT_PARSING_ERROR, ErrorKind::ParseTo)(i)
+                        error(MshParserErrorKind::IntegerOutOfRange)(i)
                     }
                 }
                 Err(e) => Err(e),
-            }) as fn(&'a [u8]) -> IResult<&'a [u8], T, E>
+            }) as fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>>
         };
     }
 
@@ -145,18 +144,18 @@ pub fn int_parser<'a, T: Signed + Integer + NumCast + str::FromStr, E: ParseErro
             {
                 Ok((i, v)) => match v {
                     Ok(v) => Ok((i, v)),
-                    Err(_) => nom_error(error_strings::INT_PARSING_ERROR, ErrorKind::ParseTo)(i),
+                    Err(_) => error(MshParserErrorKind::IntegerOutOfRange)(i),
                 },
                 Err(e) => Err(e),
-            }) as fn(&'a [u8]) -> IResult<&'a [u8], T, E>
+            }) as fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>>
         }
     }
 }
 
-pub fn float_parser<'a, T: Float + NumCast, E: ParseError<&'a [u8]>>(
+pub fn float_parser<'a, T: Float + NumCast>(
     source_size: usize,
     endianness: Option<Endianness>,
-) -> impl Copy + Fn(&'a [u8]) -> IResult<&'a [u8], T, E> {
+) -> impl Copy + Fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>> {
     /*
     if std::mem::size_of::<T>() < source_size {
         panic!(
@@ -174,11 +173,11 @@ pub fn float_parser<'a, T: Float + NumCast, E: ParseError<&'a [u8]>>(
                     if let Some(v) = T::from(v) {
                         Ok(((i, v)))
                     } else {
-                        nom_error(error_strings::FLOAT_PARSING_ERROR, ErrorKind::ParseTo)(i)
+                        error(MshParserErrorKind::FloatOutOfRange)(i)
                     }
                 }
                 Err(e) => Err(e),
-            }) as fn(&'a [u8]) -> IResult<&'a [u8], T, E>
+            }) as fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>>
         };
     }
 
@@ -209,11 +208,11 @@ pub fn float_parser<'a, T: Float + NumCast, E: ParseError<&'a [u8]>>(
                     if let Some(v) = T::from(v) {
                         Ok((i, v))
                     } else {
-                        nom_error(error_strings::FLOAT_PARSING_ERROR, ErrorKind::ParseTo)(i)
+                        error(MshParserErrorKind::FloatOutOfRange)(i)
                     }
                 }
                 Err(e) => Err(e),
-            }) as fn(&'a [u8]) -> IResult<&'a [u8], T, E>
+            }) as fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>>
         }
     }
 }

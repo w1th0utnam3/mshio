@@ -1,6 +1,6 @@
 use std::collections::HashMap;
-use std::hash::Hash;
 use std::fmt::Debug;
+use std::hash::Hash;
 
 use nom::number::Endianness;
 
@@ -9,7 +9,10 @@ use num_derive::FromPrimitive;
 use num_traits::{Float, FromPrimitive, Signed, ToPrimitive, Unsigned};
 
 /// Super-trait for all purposes in the MSH parser that require `size_t` like types
-pub trait MshUsizeT: Unsigned + Integer + ToPrimitive + FromPrimitive + Clone + Hash + Debug {}
+pub trait MshUsizeT:
+    Unsigned + Integer + ToPrimitive + FromPrimitive + Clone + Hash + Debug
+{
+}
 /// Super-trait for all purposes in the MSH parser that require `int` like types
 pub trait MshIntT: Signed + Integer + ToPrimitive + FromPrimitive + Clone + Debug {}
 /// Super-trait for all purposes in the MSH parser that require `float` like types

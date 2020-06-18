@@ -4,28 +4,26 @@ use nom::error::ParseError;
 use nom::multi::count;
 use nom::IResult;
 
+use crate::error::MshParserError;
 use crate::mshfile::{MshFloatT, MshHeader, MshIntT, MshUsizeT, Node, NodeBlock, Nodes};
 use crate::parsers::num_parsers;
 
-pub(crate) fn parse_node_section<'a, 'b: 'a, E>(
+pub(crate) fn parse_node_section<'a, 'b: 'a>(
     header: &'a MshHeader,
-) -> impl Fn(&'b [u8]) -> IResult<&'b [u8], Nodes<usize, i32, f64>, E>
-where
-    E: ParseError<&'b [u8]>,
+) -> impl Fn(&'b [u8]) -> IResult<&'b [u8], Nodes<usize, i32, f64>, MshParserError<&'b [u8]>>
 {
     let header = header.clone();
     move |input| {
         let size_t_parser =
-            num_parsers::uint_parser::<usize, _>(header.size_t_size, header.endianness);
+            num_parsers::uint_parser::<usize>(header.size_t_size, header.endianness);
 
         let (input, num_entity_blocks) = size_t_parser(input)?;
         let (input, num_nodes) = size_t_parser(input)?;
         let (input, min_node_tag) = size_t_parser(input)?;
         let (input, max_node_tag) = size_t_parser(input)?;
 
-        let int_parser = num_parsers::int_parser::<i32, _>(header.int_size, header.endianness);
-        let double_parser =
-            num_parsers::float_parser::<f64, _>(header.float_size, header.endianness);
+        let int_parser = num_parsers::int_parser::<i32>(header.int_size, header.endianness);
+        let double_parser = num_parsers::float_parser::<f64>(header.float_size, header.endianness);
 
         let sparse_tags = if min_node_tag == 0 {
             panic!("Node tag 0 is reserved for internal use");
