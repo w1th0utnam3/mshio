@@ -7,7 +7,7 @@ use nom::number::Endianness;
 use nom::sequence::{delimited, preceded};
 use nom::IResult;
 
-use crate::error::{create_error, MshParserError, MshParserErrorKind};
+use crate::error::{error, MshParserError, MshParserErrorKind};
 use crate::mshfile::MshHeader;
 use crate::parsers::{br, sp};
 
@@ -19,7 +19,7 @@ pub(crate) fn parse_header_section<'a>(
     let (input, version) = {
         let (input_new, version) = numbers::double(input)?;
         if version != 4.1 {
-            return create_error(MshParserErrorKind::MshVersionUnsupported)(input);
+            return error(MshParserErrorKind::MshVersionUnsupported)(input);
         }
         (input_new, version)
     };

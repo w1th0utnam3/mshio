@@ -71,7 +71,7 @@ pub use error::MshParserError;
 pub use mshfile::*;
 
 use crate::error::MshParserErrorKind;
-use error::{create_error, static_context};
+use error::{error, owned_context, static_context};
 use parsers::{br, take_sp};
 use parsers::{
     parse_element_section, parse_entity_section, parse_header_section, parse_node_section,
@@ -186,7 +186,7 @@ fn private_parse_msh_bytes<'a>(
             let (input_, elements) = parse_section!(
                 "$Elements",
                 "$EndElements",
-                |i| static_context("Element section content", parse_element_section(&header))(i),
+                |i| owned_context("Element section content", parse_element_section(&header))(i),
                 input
             )?;
 
@@ -210,7 +210,7 @@ fn private_parse_msh_bytes<'a>(
         }
         // Check for invalid lines
         else {
-            return create_error(MshParserErrorKind::SectionHeaderInvalid)(input);
+            return error(MshParserErrorKind::SectionHeaderInvalid)(input);
         }
     }
 

@@ -22,7 +22,7 @@ pub(crate) mod error_strings {
 }
 
 /// Returns a combinator that returns a nom ParseError with a context message
-pub(crate) fn create_nom_error<I: Clone, E: ParseError<I>, O>(
+pub(crate) fn nom_error<I: Clone, E: ParseError<I>, O>(
     context_msg: &'static str,
     kind: ErrorKind,
 ) -> impl Fn(I) -> IResult<I, O, E> {
@@ -32,15 +32,15 @@ pub(crate) fn create_nom_error<I: Clone, E: ParseError<I>, O>(
 }
 
 /// Returns a combinator that returns an error of the specified kind
-pub(crate) fn create_error<I: Clone, O>(
+pub(crate) fn error<I, O>(
     kind: MshParserErrorKind,
 ) -> impl Fn(I) -> IResult<I, O, MshParserError<I>> {
-    move |i: I| {
-        Err(nom::Err::Error(MshParserError::from_error_kind(
-            i,
-            kind.clone(),
-        )))
-    }
+    move |i: I| Err(create_error(i, kind.clone()))
+}
+
+/// Creates an MshParserError wrapped inside a nom::Err (for usage with ? operator)
+pub(crate) fn create_error<I>(input: I, kind: MshParserErrorKind) -> nom::Err<MshParserError<I>> {
+    nom::Err::Error(MshParserError::from_error_kind(input, kind))
 }
 
 /// Returns a combinator that appends a static context message if the callable returns an error
@@ -99,7 +99,8 @@ pub enum MshParserErrorKind {
 }
 
 impl MshParserErrorKind {
-    fn is_nom_error(&self) -> bool {
+    /// Returns whether the variant is an internal nom error
+    pub fn is_nom_error(&self) -> bool {
         match self {
             MshParserErrorKind::NomVerbose(_) => true,
             _ => false,
@@ -107,7 +108,7 @@ impl MshParserErrorKind {
     }
 
     /// Returns a reference to the context message of this error contains one
-    fn context(&self) -> Option<&str> {
+    pub fn context(&self) -> Option<&str> {
         match self {
             MshParserErrorKind::OwnedContext(c) => Some(c.as_str()),
             MshParserErrorKind::StaticContext(c) => Some(*c),
@@ -137,7 +138,7 @@ impl<I> MshParserError<I> {
     }
 
     /// Construct a new error with the given input and error kind
-    fn from_error_kind(input: I, kind: MshParserErrorKind) -> Self {
+    pub(crate) fn from_error_kind(input: I, kind: MshParserErrorKind) -> Self {
         Self {
             backtrace: vec![(input, kind)],
         }
@@ -195,7 +196,11 @@ impl<I: Debug + HexDisplay + ?Sized> Display for MshParserError<&I> {
             }
             write!(f, "an error occurred: ")?;
             write!(f, "{}\n", backtrace[0].1)?;
-            write!(f, "Hex dump of the file at the error location:\n{}", backtrace[0].0.to_hex(16))?;
+            write!(
+                f,
+                "Hex dump of the file at the error location:\n{}",
+                backtrace[0].0.to_hex(16)
+            )?;
             Ok(())
         } else if backtrace.len() == 1 {
             write!(f, "An error occurred during: ")?;
@@ -261,4 +266,18 @@ impl<I: Debug, E: Into<MshParserError<I>>> From<nom::Err<E>> for MshParserError<
             _ => Self::new(),
         }
     }
+}
+
+pub(crate) trait MshParserCompatibleError<I>
+where
+    Self: ParseError<I>,
+    nom::Err<MshParserError<I>>: From<nom::Err<Self>>,
+{
+}
+
+impl<I, T> MshParserCompatibleError<I> for T
+where
+    T: ParseError<I>,
+    nom::Err<MshParserError<I>>: From<nom::Err<T>>,
+{
 }

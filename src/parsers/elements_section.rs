@@ -5,16 +5,15 @@ use nom::multi::count;
 use nom::IResult;
 use num_traits::FromPrimitive;
 
-use crate::error::{create_nom_error, error_strings};
+use crate::error::{
+    create_error, error, MshParserCompatibleError, MshParserError, MshParserErrorKind,
+};
 use crate::mshfile::{Element, ElementBlock, ElementType, Elements, MshHeader, MshIntT, MshUsizeT};
 use crate::parsers::num_parsers;
 
-pub(crate) fn parse_element_section<'a, 'b: 'a, E>(
+pub(crate) fn parse_element_section<'a, 'b: 'a>(
     header: &'a MshHeader,
-) -> impl Fn(&'b [u8]) -> IResult<&'b [u8], Elements<usize, i32>, E>
-where
-    E: ParseError<&'b [u8]>,
-{
+) -> impl Fn(&'b [u8]) -> IResult<&'b [u8], Elements<usize, i32>, MshParserError<&'b [u8]>> {
     let header = header.clone();
     move |input| {
         let size_t_parser =
@@ -55,20 +54,21 @@ where
 fn parse_element_type<'a, I, IntParser, E>(
     int_parser: IntParser,
     input: &'a [u8],
-) -> IResult<&'a [u8], ElementType, E>
+) -> IResult<&'a [u8], ElementType, MshParserError<&'a [u8]>>
 where
     I: MshIntT,
     IntParser: Fn(&'a [u8]) -> IResult<&'a [u8], I, E>,
-    E: ParseError<&'a [u8]>,
+    E: MshParserCompatibleError<&'a [u8]>,
+    nom::Err<MshParserError<&'a [u8]>>: From<nom::Err<E>>,
 {
-    let (input, element_type_raw) = int_parser(input)?;
+    let (input_new, element_type_raw) = int_parser(input)?;
     let element_type_raw = element_type_raw
         .to_i32()
-        .expect("Element type does not fit into i32");
+        .ok_or(create_error(input, MshParserErrorKind::ElementUnknown))?;
 
     match ElementType::from_i32(element_type_raw) {
-        Some(element_type) => Ok((input, element_type)),
-        None => create_nom_error(error_strings::ELEMENT_UNKNOWN, ErrorKind::Tag)(input),
+        Some(element_type) => Ok((input_new, element_type)),
+        None => error(MshParserErrorKind::ElementUnknown)(input),
     }
 }
 
@@ -77,18 +77,19 @@ fn parse_element_entity<'a, U, I, SizeTParser, IntParser, E>(
     int_parser: IntParser,
     sparse_tags: bool,
     input: &'a [u8],
-) -> IResult<&'a [u8], ElementBlock<U, I>, E>
+) -> IResult<&'a [u8], ElementBlock<U, I>, MshParserError<&'a [u8]>>
 where
     U: MshUsizeT,
     I: MshIntT,
     SizeTParser: Fn(&'a [u8]) -> IResult<&'a [u8], U, E>,
     IntParser: Fn(&'a [u8]) -> IResult<&'a [u8], I, E>,
-    E: ParseError<&'a [u8]>,
+    E: MshParserCompatibleError<&'a [u8]>,
+    nom::Err<MshParserError<&'a [u8]>>: From<nom::Err<E>>,
 {
     let (input, entity_dim) = int_parser(input)?;
     let (input, entity_tag) = int_parser(input)?;
     let (input, element_type) = parse_element_type(int_parser, input)?;
-    let (input, num_elements_in_block) = size_t_parser(input)?;
+    let (input_new, num_elements_in_block) = size_t_parser(input)?;
 
     // Convert number of elements to usize for convenience
     let num_elements_in_block = num_elements_in_block
@@ -99,9 +100,7 @@ where
     let num_nodes = match element_type.nodes() {
         Ok(v) => v,
         Err(_) => {
-            return create_nom_error(error_strings::ELEMENT_NUM_NODES_UNKNOWN, ErrorKind::Tag)(
-                input,
-            );
+            return error(MshParserErrorKind::ElementNumNodesUnknown)(input);
         }
     };
 
@@ -125,7 +124,7 @@ where
         ))
     };
 
-    let (input, elements) = count(parse_element, num_elements_in_block)(input)?;
+    let (input, elements) = count(parse_element, num_elements_in_block)(input_new)?;
 
     let element_tags = if sparse_tags {
         Some(
