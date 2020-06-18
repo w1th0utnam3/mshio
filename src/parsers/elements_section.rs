@@ -1,13 +1,10 @@
 use std::collections::HashMap;
 
-use nom::error::{ErrorKind, ParseError};
 use nom::multi::count;
 use nom::IResult;
 use num_traits::FromPrimitive;
 
-use crate::error::{
-    create_error, error, MshParserCompatibleError, MshParserError, MshParserErrorKind,
-};
+use crate::error::{error, MshParserCompatibleError, MshParserError, MshParserErrorKind};
 use crate::mshfile::{Element, ElementBlock, ElementType, Elements, MshHeader, MshIntT, MshUsizeT};
 use crate::parsers::num_parsers;
 
@@ -62,9 +59,9 @@ where
     nom::Err<MshParserError<&'a [u8]>>: From<nom::Err<E>>,
 {
     let (input_new, element_type_raw) = int_parser(input)?;
-    let element_type_raw = element_type_raw
-        .to_i32()
-        .ok_or(create_error(input, MshParserErrorKind::ElementUnknown))?;
+    let element_type_raw = element_type_raw.to_i32().ok_or_else(|| {
+        MshParserError::from_error_kind(input, MshParserErrorKind::ElementUnknown).into_nom_err()
+    })?;
 
     match ElementType::from_i32(element_type_raw) {
         Some(element_type) => Ok((input_new, element_type)),
@@ -91,12 +88,20 @@ where
     let (input, element_type) = parse_element_type(int_parser, input)?;
     let (input_new, num_elements_in_block) = size_t_parser(input)?;
 
-    // Convert number of elements to usize for convenience
-    let num_elements_in_block = num_elements_in_block
-        .to_usize()
-        .expect("Number of elements in block do not fit in usize");
+    // Try to convert number of elements to usize
+    let num_elements_in_block = num_elements_in_block.to_usize().ok_or_else(|| {
+        MshParserError::from_error_kind(input.clone(), MshParserErrorKind::TooManyEntities)
+            .with_context(
+                input.clone(),
+                format!(
+                    "The current block contains {:?} entities",
+                    num_elements_in_block
+                ),
+            )
+            .into_nom_err()
+    })?;
 
-    // Try to get the number of nodes of the elements
+    // Try to get the number of nodes per element
     let num_nodes = match element_type.nodes() {
         Ok(v) => v,
         Err(_) => {

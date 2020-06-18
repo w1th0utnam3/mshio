@@ -9,10 +9,6 @@ use nom::{HexDisplay, IResult};
 
 /// Contains error message strings used in the library
 pub(crate) mod error_strings {
-    pub(crate) static ELEMENT_UNKNOWN: &'static str =
-        "An unknown element type was encountered in the MSH file.";
-    pub(crate) static ELEMENT_NUM_NODES_UNKNOWN: &'static str =
-        "Unimplemented: The number of nodes for an element encountered in the MSH file does not belong to a known element type.";
     pub(crate) static UINT_PARSING_ERROR: &'static str =
         "Parsing of an unsigned integer failed. The target data type may be too small to hold a value encountered in the MSH file.";
     pub(crate) static INT_PARSING_ERROR: &'static str =
@@ -35,12 +31,7 @@ pub(crate) fn nom_error<I: Clone, E: ParseError<I>, O>(
 pub(crate) fn error<I, O>(
     kind: MshParserErrorKind,
 ) -> impl Fn(I) -> IResult<I, O, MshParserError<I>> {
-    move |i: I| Err(create_error(i, kind.clone()))
-}
-
-/// Creates an MshParserError wrapped inside a nom::Err (for usage with ? operator)
-pub(crate) fn create_error<I>(input: I, kind: MshParserErrorKind) -> nom::Err<MshParserError<I>> {
-    nom::Err::Error(MshParserError::from_error_kind(input, kind))
+    move |i: I| Err(MshParserError::from_error_kind(i, kind.clone()).into_nom_err())
 }
 
 /// Returns a combinator that appends a static context message if the callable returns an error
@@ -90,6 +81,8 @@ pub enum MshParserErrorKind {
     ElementUnknown,
     #[error("Unimplemented: The number of nodes for an element encountered in the MSH file does not belong to a known element type.")]
     ElementNumNodesUnknown,
+    #[error("There are too many entities to parse them into contiguous memory on the current system (usize type too small).")]
+    TooManyEntities,
     #[error("{0}")]
     OwnedContext(String),
     #[error("{0}")]
@@ -137,6 +130,10 @@ impl<I> MshParserError<I> {
         }
     }
 
+    pub(crate) fn into_nom_err(self) -> nom::Err<Self> {
+        nom::Err::Error(self)
+    }
+
     /// Construct a new error with the given input and error kind
     pub(crate) fn from_error_kind(input: I, kind: MshParserErrorKind) -> Self {
         Self {
@@ -145,13 +142,13 @@ impl<I> MshParserError<I> {
     }
 
     /// Append an error to the backtrace with the given input and error kind
-    fn append(mut self, input: I, kind: MshParserErrorKind) -> Self {
+    pub(crate) fn append(mut self, input: I, kind: MshParserErrorKind) -> Self {
         self.backtrace.push((input, kind));
         self
     }
 
     /// Append a context message to the backtrace, consuming
-    fn with_context(self, input: I, context_msg: String) -> Self {
+    pub(crate) fn with_context(self, input: I, context_msg: String) -> Self {
         self.append(input, MshParserErrorKind::OwnedContext(context_msg))
     }
 

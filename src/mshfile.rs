@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::hash::Hash;
+use std::fmt::Debug;
 
 use nom::number::Endianness;
 
@@ -8,15 +9,15 @@ use num_derive::FromPrimitive;
 use num_traits::{Float, FromPrimitive, Signed, ToPrimitive, Unsigned};
 
 /// Super-trait for all purposes in the MSH parser that require `size_t` like types
-pub trait MshUsizeT: Unsigned + Integer + ToPrimitive + FromPrimitive + Clone + Hash {}
+pub trait MshUsizeT: Unsigned + Integer + ToPrimitive + FromPrimitive + Clone + Hash + Debug {}
 /// Super-trait for all purposes in the MSH parser that require `int` like types
-pub trait MshIntT: Signed + Integer + ToPrimitive + FromPrimitive + Clone {}
+pub trait MshIntT: Signed + Integer + ToPrimitive + FromPrimitive + Clone + Debug {}
 /// Super-trait for all purposes in the MSH parser that require `float` like types
-pub trait MshFloatT: Float + ToPrimitive + Clone {}
+pub trait MshFloatT: Float + ToPrimitive + Clone + Debug {}
 
-impl<T: Unsigned + Integer + ToPrimitive + FromPrimitive + Clone + Hash> MshUsizeT for T {}
-impl<T: Signed + Integer + ToPrimitive + FromPrimitive + Clone> MshIntT for T {}
-impl<T: Float + ToPrimitive + Clone> MshFloatT for T {}
+impl<T: Unsigned + Integer + ToPrimitive + FromPrimitive + Clone + Hash + Debug> MshUsizeT for T {}
+impl<T: Signed + Integer + ToPrimitive + FromPrimitive + Clone + Debug> MshIntT for T {}
+impl<T: Float + ToPrimitive + Clone + Debug> MshFloatT for T {}
 
 /// A parsed MSH file containing mesh and header data
 ///
