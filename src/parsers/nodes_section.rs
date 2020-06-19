@@ -3,11 +3,18 @@ use std::collections::HashMap;
 use nom::error::ParseError;
 use nom::multi::count;
 use nom::IResult;
-use num::cast::ToPrimitive;
 
-use crate::error::MshParserError;
+use crate::error::{context, error, MapMshError, MshParserError, MshParserErrorKind};
 use crate::mshfile::{MshFloatT, MshHeader, MshIntT, MshUsizeT, Node, NodeBlock, Nodes};
+use crate::parsers::general_parsers::{count_indexed, verify_or};
 use crate::parsers::num_parsers;
+
+struct NodeSectionHeader<U: MshUsizeT> {
+    num_entity_blocks: usize,
+    num_nodes: U,
+    min_node_tag: U,
+    max_node_tag: U,
+}
 
 pub(crate) fn parse_node_section<'a, 'b: 'a>(
     header: &'a MshHeader,
@@ -15,26 +22,42 @@ pub(crate) fn parse_node_section<'a, 'b: 'a>(
     let header = header.clone();
     move |input| {
         let size_t_parser = num_parsers::uint_parser::<u64>(header.size_t_size, header.endianness);
-
-        let (input, num_entity_blocks) = size_t_parser(input)?;
-        let (input, num_nodes) = size_t_parser(input)?;
-        let (input, min_node_tag) = size_t_parser(input)?;
-        let (input, max_node_tag) = size_t_parser(input)?;
-
         let int_parser = num_parsers::int_parser::<i32>(header.int_size, header.endianness);
         let double_parser = num_parsers::float_parser::<f64>(header.float_size, header.endianness);
 
-        let sparse_tags = if min_node_tag == 0 {
-            panic!("Node tag 0 is reserved for internal use");
-        } else if max_node_tag - min_node_tag > num_nodes - 1 {
+        // Parse the section header
+        let (input, node_section_header) = context("Node section header", |input| {
+            parse_node_section_header(&size_t_parser, input)
+        })(input)?;
+
+        let NodeSectionHeader {
+            num_entity_blocks,
+            num_nodes,
+            min_node_tag,
+            max_node_tag,
+        } = node_section_header;
+
+        let sparse_tags = if max_node_tag - min_node_tag > num_nodes - 1 {
             true
         } else {
             false
         };
 
-        let (input, node_entity_blocks) = count(
-            |i| parse_node_entity(size_t_parser, int_parser, double_parser, sparse_tags, i),
-            num_entity_blocks.to_usize().unwrap(), // TODO,
+        // Parse the individual node entity blocks
+        let (input, node_entity_blocks) = count_indexed(
+            |index, input| {
+                parse_node_entity(
+                    &size_t_parser,
+                    &int_parser,
+                    double_parser,
+                    sparse_tags,
+                    input,
+                )
+                .with_context_from(input, || {
+                    format!("node entity block ({} of {})", index + 1, num_entity_blocks)
+                })
+            },
+            num_entity_blocks,
         )(input)?;
 
         Ok((
@@ -47,6 +70,52 @@ pub(crate) fn parse_node_section<'a, 'b: 'a>(
             },
         ))
     }
+}
+
+fn parse_node_section_header<'a, SizeTParser>(
+    size_t_parser: SizeTParser,
+    input: &'a [u8],
+) -> IResult<&'a [u8], NodeSectionHeader<u64>, MshParserError<&'a [u8]>>
+where
+    SizeTParser: Fn(&'a [u8]) -> IResult<&'a [u8], u64, MshParserError<&'a [u8]>>,
+{
+    let to_usize_parser = num_parsers::usize_parser(&size_t_parser);
+
+    let (input, num_entity_blocks) =
+        context("number of node entity blocks", &to_usize_parser)(input)?;
+    let (input, num_nodes) = context("total number of elements", &size_t_parser)(input)?;
+    let (input, min_node_tag) = context(
+        "min node tag",
+        verify_or(
+            &size_t_parser,
+            |tag| *tag != 0,
+            context(
+                "Node tag 0 is reserved for internal use",
+                error(MshParserErrorKind::InvalidTag),
+            ),
+        ),
+    )(input)?;
+    let (input, max_node_tag) = context(
+        "max node tag",
+        verify_or(
+            &size_t_parser,
+            |max_tag| *max_tag >= min_node_tag,
+            context(
+                "The maximum node tag has to be larger or equal to the minimum node tag",
+                error(MshParserErrorKind::InvalidTag),
+            ),
+        ),
+    )(input)?;
+
+    Ok((
+        input,
+        NodeSectionHeader {
+            num_entity_blocks,
+            num_nodes,
+            min_node_tag,
+            max_node_tag,
+        },
+    ))
 }
 
 fn parse_node_entity<

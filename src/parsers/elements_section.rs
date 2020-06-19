@@ -8,11 +8,11 @@ use crate::mshfile::{Element, ElementBlock, ElementType, Elements, MshHeader, Ms
 use crate::parsers::general_parsers::{count_indexed, verify_or};
 use crate::parsers::num_parsers;
 
-struct ElementSectionHeader {
+struct ElementSectionHeader<U: MshUsizeT> {
     num_entity_blocks: usize,
-    num_elements: u64,
-    min_element_tag: u64,
-    max_element_tag: u64,
+    num_elements: U,
+    min_element_tag: U,
+    max_element_tag: U,
 }
 
 pub(crate) fn parse_element_section<'a, 'b: 'a>(
@@ -72,7 +72,7 @@ pub(crate) fn parse_element_section<'a, 'b: 'a>(
 fn parse_element_section_header<'a, SizeTParser>(
     size_t_parser: SizeTParser,
     input: &'a [u8],
-) -> IResult<&'a [u8], ElementSectionHeader, MshParserError<&'a [u8]>>
+) -> IResult<&'a [u8], ElementSectionHeader<u64>, MshParserError<&'a [u8]>>
 where
     SizeTParser: Fn(&'a [u8]) -> IResult<&'a [u8], u64, MshParserError<&'a [u8]>>,
 {
