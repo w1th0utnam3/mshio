@@ -36,7 +36,7 @@ where
 pub fn uint_parser<'a, T: Unsigned + Integer + NumCast + str::FromStr>(
     source_size: usize,
     endianness: Option<Endianness>,
-) -> impl Copy + Fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>> {
+) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>> {
     macro_rules! generate_parser {
         ($parser:expr) => {
             (|i| match $parser(i) {
@@ -99,7 +99,7 @@ pub fn uint_parser<'a, T: Unsigned + Integer + NumCast + str::FromStr>(
 pub fn int_parser<'a, T: Signed + Integer + NumCast + str::FromStr>(
     source_size: usize,
     endianness: Option<Endianness>,
-) -> impl Copy + Fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>> {
+) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>> {
     macro_rules! generate_parser {
         ($parser:expr) => {
             (|i| match $parser(i) {
@@ -160,7 +160,7 @@ pub fn int_parser<'a, T: Signed + Integer + NumCast + str::FromStr>(
 pub fn float_parser<'a, T: Float + NumCast>(
     source_size: usize,
     endianness: Option<Endianness>,
-) -> impl Copy + Fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>> {
+) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>> {
     macro_rules! generate_parser {
         ($parser:expr) => {
             (|i| match $parser(i) {

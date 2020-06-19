@@ -26,7 +26,7 @@ pub(crate) fn parse_entity_section<'a, 'b: 'a>(
         let (input, points) = context(
             "Point entity section",
             count(
-                |i| parse_point(size_t_parser, int_parser, double_parser, i),
+                |i| parse_point(&size_t_parser, &int_parser, &double_parser, i),
                 num_points.to_usize().unwrap(), // TODO,
             ),
         )(input)?;
@@ -34,7 +34,7 @@ pub(crate) fn parse_entity_section<'a, 'b: 'a>(
         let (input, curves) = context(
             "Curve entity section",
             count(
-                |i| parse_curve(size_t_parser, int_parser, double_parser, i),
+                |i| parse_curve(&size_t_parser, &int_parser, &double_parser, i),
                 num_curves.to_usize().unwrap(), // TODO,
             ),
         )(input)?;
@@ -42,7 +42,7 @@ pub(crate) fn parse_entity_section<'a, 'b: 'a>(
         let (input, surfaces) = context(
             "Surface entity section",
             count(
-                |i| parse_surface(size_t_parser, int_parser, double_parser, i),
+                |i| parse_surface(&size_t_parser, &int_parser, &double_parser, i),
                 num_surfaces.to_usize().unwrap(), // TODO,
             ),
         )(input)?;
@@ -50,7 +50,7 @@ pub(crate) fn parse_entity_section<'a, 'b: 'a>(
         let (input, volumes) = context(
             "Volume entity section",
             count(
-                |i| parse_volume(size_t_parser, int_parser, double_parser, i),
+                |i| parse_volume(&size_t_parser, &int_parser, &double_parser, i),
                 num_volumes.to_usize().unwrap(), // TODO,
             ),
         )(input)?;
