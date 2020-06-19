@@ -207,7 +207,7 @@ fn private_parse_msh_bytes<'a>(
         }
         // Check for invalid lines
         else {
-            return always_error(MshParserErrorKind::SectionHeaderInvalid)(input);
+            return always_error(MshParserErrorKind::InvalidSectionHeader)(input);
         }
     }
 

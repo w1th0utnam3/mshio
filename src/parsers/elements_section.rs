@@ -7,8 +7,8 @@ use crate::error::{
     always_error, context, make_error, MapMshError, MshParserError, MshParserErrorKind,
 };
 use crate::mshfile::{Element, ElementBlock, ElementType, Elements, MshHeader, MshIntT, MshUsizeT};
-use crate::parsers::general_parsers::{count_indexed, verify_or};
 use crate::parsers::num_parsers;
+use crate::parsers::{count_indexed, verify_or};
 
 struct ElementSectionHeader<U: MshUsizeT> {
     num_entity_blocks: usize,
@@ -87,7 +87,7 @@ where
         "min element tag",
         verify_or(
             &size_t_parser,
-            |tag| *tag != 0,
+            |&tag| tag != 0,
             context(
                 "Element tag 0 is reserved for internal use",
                 always_error(MshParserErrorKind::InvalidTag),
@@ -98,7 +98,7 @@ where
         "max element tag",
         verify_or(
             &size_t_parser,
-            |max_tag| *max_tag >= min_element_tag,
+            |&max_tag| max_tag >= min_element_tag,
             context(
                 "The maximum element tag has to be larger or equal to the minimum element tag",
                 always_error(MshParserErrorKind::InvalidTag),
@@ -162,7 +162,7 @@ where
         num_elements_in_block,
     )(input_new)?;
 
-    // Extract the index -> element tags mapping if tags are sparse
+    // Extract the element tags -> index mapping if tags are sparse
     let element_tags = if sparse_tags {
         Some(
             elements
@@ -201,11 +201,11 @@ where
     // Try to convert it into i32 (because this is the underlying type of our enum)
     let element_type_raw = element_type_raw
         .to_i32()
-        .ok_or_else(|| make_error(input, MshParserErrorKind::ElementUnknown))?;
+        .ok_or_else(|| make_error(input, MshParserErrorKind::UnknownElement))?;
 
     // Try to construct a element type variant from the i32 value
     let element_type = ElementType::from_i32(element_type_raw).ok_or_else(|| {
-        make_error(input, MshParserErrorKind::ElementUnknown)
+        make_error(input, MshParserErrorKind::UnknownElement)
             .with_context_from(input, || format!("value {}", element_type_raw))
     })?;
 

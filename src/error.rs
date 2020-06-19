@@ -65,11 +65,13 @@ pub enum ValueType {
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum MshParserErrorKind {
     #[error("MSH file of unsupported version loaded. Only the MSH file format specification of version 4.1 is supported.")]
-    MshVersionUnsupported,
+    UnsupportedMshVersion,
+    #[error("The MSH file header is not valid.")]
+    InvalidFileHeader,
     #[error("Unexpected tokens found after file header. Expected a section according to the MSH file format specification.")]
-    SectionHeaderInvalid,
+    InvalidSectionHeader,
     #[error("An unknown element type was encountered in the MSH file.")]
-    ElementUnknown,
+    UnknownElement,
     #[error("There are too many entities to parse them into contiguous memory on the current system (usize type too small).")]
     TooManyEntities,
     #[error("A {0} value could not be parsed because it was out of range of the target data type.")]

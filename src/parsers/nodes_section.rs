@@ -7,8 +7,8 @@ use crate::error::{
     always_error, context, error, make_error, MapMshError, MshParserError, MshParserErrorKind,
 };
 use crate::mshfile::{MshFloatT, MshHeader, MshIntT, MshUsizeT, Node, NodeBlock, Nodes};
-use crate::parsers::general_parsers::{count_indexed, verify_or};
 use crate::parsers::num_parsers;
+use crate::parsers::{count_indexed, verify_or};
 
 struct NodeSectionHeader<U: MshUsizeT> {
     num_entity_blocks: usize,
@@ -89,7 +89,7 @@ where
         "min node tag",
         verify_or(
             &size_t_parser,
-            |tag| *tag != 0,
+            |&tag| tag != 0,
             context(
                 "Node tag 0 is reserved for internal use",
                 always_error(MshParserErrorKind::InvalidTag),
@@ -100,7 +100,7 @@ where
         "max node tag",
         verify_or(
             &size_t_parser,
-            |max_tag| *max_tag >= min_node_tag,
+            |&max_tag| max_tag >= min_node_tag,
             context(
                 "The maximum node tag has to be larger or equal to the minimum node tag",
                 always_error(MshParserErrorKind::InvalidTag),
@@ -160,7 +160,7 @@ where
     let parametric = parametric != I::zero();
     if parametric {
         return Err(make_error(input, MshParserErrorKind::Unimplemented)
-            .with_context(input, "Parametric nodes are not supported yet"));
+            .with_context(input, "Parsing of parametric nodes is not supported yet"));
     }
 
     // Closure that parses all node tags

@@ -40,7 +40,7 @@ macro_rules! simple_error_test {
 
 simple_error_test!(
     test_unsupported_msh_version_ascii,
-    MshParserErrorKind::MshVersionUnsupported,
+    MshParserErrorKind::UnsupportedMshVersion,
     "\
 $MeshFormat
 27.1 0 8
@@ -57,7 +57,7 @@ fn test_old_msh_version_bin() {
 
 simple_error_test!(
     test_invalid_section,
-    MshParserErrorKind::SectionHeaderInvalid,
+    MshParserErrorKind::InvalidSectionHeader,
     "\
 $MeshFormat
 4.1 0 8
@@ -71,7 +71,7 @@ Hello
 
 simple_error_test!(
     test_invalid_element_type,
-    MshParserErrorKind::ElementUnknown,
+    MshParserErrorKind::UnknownElement,
     "\
 $MeshFormat
 4.1 0 8
