@@ -1,4 +1,5 @@
 use std::borrow::Borrow;
+use std::cell::Cell;
 
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take, take_while};
@@ -6,6 +7,7 @@ use nom::character::complete::{char, digit1};
 use nom::combinator::{opt, recognize};
 use nom::error::{ErrorKind, ParseError};
 use nom::lib::std::ops::{RangeFrom, RangeTo};
+use nom::multi::count;
 use nom::sequence::{delimited, pair};
 use nom::{AsChar, IResult};
 use nom::{InputIter, InputTakeAtPosition, Offset, Slice};
@@ -317,7 +319,7 @@ pub fn verify_or<I, O1, O2, E: ParseError<I>, F, G, H>(
     alt: H,
 ) -> impl Fn(I) -> IResult<I, O1, E>
 where
-    I: Clone + nom::InputIter,
+    I: Clone,
     O1: Borrow<O2>,
     O2: ?Sized,
     F: Fn(I) -> IResult<I, O1, E>,
@@ -331,5 +333,24 @@ where
             return alt(i);
         }
         Ok((input, out))
+    }
+}
+
+pub fn count_indexed<I, O, E, F>(parser: F, counts: usize) -> impl Fn(I) -> IResult<I, Vec<O>, E>
+where
+    I: Clone + PartialEq,
+    F: Fn(usize, I) -> IResult<I, O, E>,
+    E: ParseError<I>,
+{
+    let counter = Cell::new(0);
+    move |input: I| {
+        count(
+            |input| {
+                let res = parser(counter.get(), input);
+                counter.set(counter.get() + 1);
+                res
+            },
+            counts,
+        )(input)
     }
 }
