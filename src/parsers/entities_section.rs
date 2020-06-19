@@ -1,9 +1,8 @@
-use nom::error::{context, ParseError};
 use nom::multi::count;
 use nom::IResult;
 use num::cast::ToPrimitive;
 
-use crate::error::MshParserError;
+use crate::error::{context, MshParserError};
 use crate::mshfile::{
     Curve, Entities, MshFloatT, MshHeader, MshIntT, MshUsizeT, Point, Surface, Volume,
 };
@@ -67,25 +66,16 @@ pub(crate) fn parse_entity_section<'a, 'b: 'a>(
     }
 }
 
-fn parse_point<
-    'a,
-    U: MshUsizeT,
-    I: MshIntT,
-    F: MshFloatT,
-    SizeTParser,
-    IntParser,
-    FloatParser,
-    E: ParseError<&'a [u8]>,
->(
+fn parse_point<'a, U: MshUsizeT, I: MshIntT, F: MshFloatT, SizeTParser, IntParser, FloatParser>(
     size_t_parser: SizeTParser,
     int_parser: IntParser,
     double_parser: FloatParser,
     input: &'a [u8],
-) -> IResult<&'a [u8], Point<I, F>, E>
+) -> IResult<&'a [u8], Point<I, F>, MshParserError<&'a [u8]>>
 where
-    SizeTParser: Fn(&'a [u8]) -> IResult<&'a [u8], U, E>,
-    IntParser: Fn(&'a [u8]) -> IResult<&'a [u8], I, E>,
-    FloatParser: Fn(&'a [u8]) -> IResult<&'a [u8], F, E>,
+    SizeTParser: Fn(&'a [u8]) -> IResult<&'a [u8], U, MshParserError<&'a [u8]>>,
+    IntParser: Fn(&'a [u8]) -> IResult<&'a [u8], I, MshParserError<&'a [u8]>>,
+    FloatParser: Fn(&'a [u8]) -> IResult<&'a [u8], F, MshParserError<&'a [u8]>>,
 {
     let (input, point_tag) = int_parser(input)?;
 
@@ -113,25 +103,16 @@ where
     ))
 }
 
-fn parse_curve<
-    'a,
-    U: MshUsizeT,
-    I: MshIntT,
-    F: MshFloatT,
-    SizeTParser,
-    IntParser,
-    FloatParser,
-    E: ParseError<&'a [u8]>,
->(
+fn parse_curve<'a, U: MshUsizeT, I: MshIntT, F: MshFloatT, SizeTParser, IntParser, FloatParser>(
     size_t_parser: SizeTParser,
     int_parser: IntParser,
     double_parser: FloatParser,
     input: &'a [u8],
-) -> IResult<&'a [u8], Curve<I, F>, E>
+) -> IResult<&'a [u8], Curve<I, F>, MshParserError<&'a [u8]>>
 where
-    SizeTParser: Fn(&'a [u8]) -> IResult<&'a [u8], U, E>,
-    IntParser: Fn(&'a [u8]) -> IResult<&'a [u8], I, E>,
-    FloatParser: Fn(&'a [u8]) -> IResult<&'a [u8], F, E>,
+    SizeTParser: Fn(&'a [u8]) -> IResult<&'a [u8], U, MshParserError<&'a [u8]>>,
+    IntParser: Fn(&'a [u8]) -> IResult<&'a [u8], I, MshParserError<&'a [u8]>>,
+    FloatParser: Fn(&'a [u8]) -> IResult<&'a [u8], F, MshParserError<&'a [u8]>>,
 {
     let (input, curve_tag) = int_parser(input)?;
 
@@ -174,25 +155,16 @@ where
     ))
 }
 
-fn parse_surface<
-    'a,
-    U: MshUsizeT,
-    I: MshIntT,
-    F: MshFloatT,
-    SizeTParser,
-    IntParser,
-    FloatParser,
-    E: ParseError<&'a [u8]>,
->(
+fn parse_surface<'a, U: MshUsizeT, I: MshIntT, F: MshFloatT, SizeTParser, IntParser, FloatParser>(
     size_t_parser: SizeTParser,
     int_parser: IntParser,
     double_parser: FloatParser,
     input: &'a [u8],
-) -> IResult<&'a [u8], Surface<I, F>, E>
+) -> IResult<&'a [u8], Surface<I, F>, MshParserError<&'a [u8]>>
 where
-    SizeTParser: Fn(&'a [u8]) -> IResult<&'a [u8], U, E>,
-    IntParser: Fn(&'a [u8]) -> IResult<&'a [u8], I, E>,
-    FloatParser: Fn(&'a [u8]) -> IResult<&'a [u8], F, E>,
+    SizeTParser: Fn(&'a [u8]) -> IResult<&'a [u8], U, MshParserError<&'a [u8]>>,
+    IntParser: Fn(&'a [u8]) -> IResult<&'a [u8], I, MshParserError<&'a [u8]>>,
+    FloatParser: Fn(&'a [u8]) -> IResult<&'a [u8], F, MshParserError<&'a [u8]>>,
 {
     let (input, surface_tag) = int_parser(input)?;
 
@@ -235,25 +207,16 @@ where
     ))
 }
 
-fn parse_volume<
-    'a,
-    U: MshUsizeT,
-    I: MshIntT,
-    F: MshFloatT,
-    SizeTParser,
-    IntParser,
-    FloatParser,
-    E: ParseError<&'a [u8]>,
->(
+fn parse_volume<'a, U: MshUsizeT, I: MshIntT, F: MshFloatT, SizeTParser, IntParser, FloatParser>(
     size_t_parser: SizeTParser,
     int_parser: IntParser,
     double_parser: FloatParser,
     input: &'a [u8],
-) -> IResult<&'a [u8], Volume<I, F>, E>
+) -> IResult<&'a [u8], Volume<I, F>, MshParserError<&'a [u8]>>
 where
-    SizeTParser: Fn(&'a [u8]) -> IResult<&'a [u8], U, E>,
-    IntParser: Fn(&'a [u8]) -> IResult<&'a [u8], I, E>,
-    FloatParser: Fn(&'a [u8]) -> IResult<&'a [u8], F, E>,
+    SizeTParser: Fn(&'a [u8]) -> IResult<&'a [u8], U, MshParserError<&'a [u8]>>,
+    IntParser: Fn(&'a [u8]) -> IResult<&'a [u8], I, MshParserError<&'a [u8]>>,
+    FloatParser: Fn(&'a [u8]) -> IResult<&'a [u8], F, MshParserError<&'a [u8]>>,
 {
     let (input, volume_tag) = int_parser(input)?;
 
