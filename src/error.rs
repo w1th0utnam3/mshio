@@ -228,17 +228,3 @@ impl<I: Debug, E: Into<MshParserError<I>>> From<nom::Err<E>> for MshParserError<
         }
     }
 }
-
-pub(crate) trait MshParserCompatibleError<I>
-where
-    Self: ParseError<I>,
-    nom::Err<MshParserError<I>>: From<nom::Err<Self>>,
-{
-}
-
-impl<I, T> MshParserCompatibleError<I> for T
-where
-    T: ParseError<I>,
-    nom::Err<MshParserError<I>>: From<nom::Err<T>>,
-{
-}
