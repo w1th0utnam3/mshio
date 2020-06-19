@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 
-use nom::error::ParseError;
 use nom::multi::count;
 use nom::IResult;
 
-use crate::error::{context, error, MapMshError, MshParserError, MshParserErrorKind};
+use crate::error::{
+    always_error, context, error, make_error, MapMshError, MshParserError, MshParserErrorKind,
+};
 use crate::mshfile::{MshFloatT, MshHeader, MshIntT, MshUsizeT, Node, NodeBlock, Nodes};
 use crate::parsers::general_parsers::{count_indexed, verify_or};
 use crate::parsers::num_parsers;
@@ -49,7 +50,7 @@ pub(crate) fn parse_node_section<'a, 'b: 'a>(
                 parse_node_entity(
                     &size_t_parser,
                     &int_parser,
-                    double_parser,
+                    &double_parser,
                     sparse_tags,
                     input,
                 )
@@ -91,7 +92,7 @@ where
             |tag| *tag != 0,
             context(
                 "Node tag 0 is reserved for internal use",
-                error(MshParserErrorKind::InvalidTag),
+                always_error(MshParserErrorKind::InvalidTag),
             ),
         ),
     )(input)?;
@@ -102,7 +103,7 @@ where
             |max_tag| *max_tag >= min_node_tag,
             context(
                 "The maximum node tag has to be larger or equal to the minimum node tag",
-                error(MshParserErrorKind::InvalidTag),
+                always_error(MshParserErrorKind::InvalidTag),
             ),
         ),
     )(input)?;
@@ -126,44 +127,58 @@ fn parse_node_entity<
     SizeTParser,
     IntParser,
     FloatParser,
-    E: ParseError<&'a [u8]>,
 >(
     size_t_parser: SizeTParser,
     int_parser: IntParser,
     double_parser: FloatParser,
     sparse_tags: bool,
     input: &'a [u8],
-) -> IResult<&'a [u8], NodeBlock<U, I, F>, E>
+) -> IResult<&'a [u8], NodeBlock<U, I, F>, MshParserError<&'a [u8]>>
 where
-    SizeTParser: Fn(&'a [u8]) -> IResult<&'a [u8], U, E>,
-    IntParser: Fn(&'a [u8]) -> IResult<&'a [u8], I, E>,
-    FloatParser: Fn(&'a [u8]) -> IResult<&'a [u8], F, E>,
+    SizeTParser: Fn(&'a [u8]) -> IResult<&'a [u8], U, MshParserError<&'a [u8]>>,
+    IntParser: Fn(&'a [u8]) -> IResult<&'a [u8], I, MshParserError<&'a [u8]>>,
+    FloatParser: Fn(&'a [u8]) -> IResult<&'a [u8], F, MshParserError<&'a [u8]>>,
 {
-    let (input, entity_dim) = int_parser(input)?;
-    let (input, entity_tag) = int_parser(input)?;
-    let (input, parametric) = int_parser(input)?;
-    let (input, num_nodes_in_block) = size_t_parser(input)?;
-    let num_nodes_in_block = num_nodes_in_block.to_usize().unwrap();
+    let to_usize_parser = num_parsers::usize_parser(&size_t_parser);
 
-    let parametric = if parametric == I::zero() {
-        false
-    } else if parametric == I::one() {
-        true
-    } else {
-        panic!("Unsupported value for node block attribute 'parametric' (only 0 and 1 supported)")
-    };
+    let (input, entity_dim) = context("entity dimension", &int_parser)(input)?;
+    let (input, entity_tag) = context("entity tag", &int_parser)(input)?;
+    let (input, parametric) = context(
+        "parametric flag",
+        verify_or(
+            &int_parser,
+            |p| *p == I::zero() || *p == I::one(),
+            context(
+                "Unsupported value for node block attribute 'parametric' (only 0 and 1 supported)",
+                always_error(MshParserErrorKind::InvalidParameter),
+            ),
+        ),
+    )(input)?;
+    let (input, num_nodes_in_block) =
+        context("number of nodes in element block", &to_usize_parser)(input)?;
 
+    let parametric = parametric != I::zero();
     if parametric {
-        unimplemented!("Parametric nodes are not supported yet");
+        return Err(make_error(input, MshParserErrorKind::Unimplemented)
+            .with_context(input, "Parametric nodes are not supported yet"));
     }
 
-    let parse_node_tag = |input| {
-        let (input, node_tag) = size_t_parser(input)?;
-        Ok((input, node_tag))
+    // Closure that parses all node tags
+    let parse_all_node_tags = |input| {
+        context(
+            "node tags",
+            count(
+                error(MshParserErrorKind::InvalidTag, &size_t_parser),
+                num_nodes_in_block,
+            ),
+        )(input)
     };
 
+    // Parse the node tags
     let (input, node_tags) = if sparse_tags {
-        let (input, node_tags) = count(parse_node_tag, num_nodes_in_block)(input)?;
+        let (input, node_tags) = parse_all_node_tags(input)?;
+
+        // Collect the node tags into a map: tag -> index
         (
             input,
             Some(
@@ -175,19 +190,28 @@ where
             ),
         )
     } else {
-        let (input, _) = count(parse_node_tag, num_nodes_in_block)(input)?;
+        // If the node tags are not sparse, we still have to read them to advance in the file
+        let (input, _) = parse_all_node_tags(input)?;
         (input, None)
     };
 
+    // Closure that parse a single node coordinate tuple
     let parse_node = |input| {
-        let (input, x) = double_parser(input)?;
-        let (input, y) = double_parser(input)?;
-        let (input, z) = double_parser(input)?;
+        let (input, x) = context("x coordinate", &double_parser)(input)?;
+        let (input, y) = context("y coordinate", &double_parser)(input)?;
+        let (input, z) = context("z coordinate", &double_parser)(input)?;
 
         Ok((input, Node { x, y, z }))
     };
 
-    let (input, nodes) = count(parse_node, num_nodes_in_block as usize)(input)?;
+    // Parse node coordinates
+    let (input, nodes) = context(
+        "node coordinates",
+        count(
+            error(MshParserErrorKind::InvalidNodeDefinition, parse_node),
+            num_nodes_in_block,
+        ),
+    )(input)?;
 
     Ok((
         input,

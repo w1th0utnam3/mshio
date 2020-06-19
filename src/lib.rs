@@ -56,6 +56,7 @@ use nom::sequence::{delimited, preceded, terminated};
 use nom::IResult;
 
 /// Error handling components of the parser
+#[allow(unused)]
 pub mod error;
 /// Contains all types that are used to represent the structure of parsed MSH files
 ///
@@ -71,11 +72,15 @@ pub use error::MshParserError;
 pub use mshfile::*;
 
 use crate::error::MshParserErrorKind;
-use error::{context, error};
+use error::{context, always_error};
 use parsers::{br, take_sp};
 use parsers::{
     parse_element_section, parse_entity_section, parse_header_section, parse_node_section,
 };
+
+// TODO: Instantiate parsers only once
+// TODO: Unify element and node section parsing
+// TODO: Make section parser generic over data types
 
 // TODO: Implement parser for physical groups
 // TODO: Log in the MeshData struct which sections were ignored
@@ -202,7 +207,7 @@ fn private_parse_msh_bytes<'a>(
         }
         // Check for invalid lines
         else {
-            return error(MshParserErrorKind::SectionHeaderInvalid)(input);
+            return always_error(MshParserErrorKind::SectionHeaderInvalid)(input);
         }
     }
 

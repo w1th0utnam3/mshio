@@ -6,11 +6,26 @@ use std::fmt::{Debug, Display};
 use nom::error::{ErrorKind, ParseError};
 use nom::{HexDisplay, IResult};
 
+pub(crate) fn make_error<I>(input: I, kind: MshParserErrorKind) -> nom::Err<MshParserError<I>> {
+    MshParserError::from_error_kind(input, kind.clone()).into_nom_error()
+}
+
 /// Returns a combinator that always returns an error of the specified kind
-pub(crate) fn error<I, O>(
+pub(crate) fn always_error<I, O>(
     kind: MshParserErrorKind,
 ) -> impl Fn(I) -> IResult<I, O, MshParserError<I>> {
-    move |i: I| Err(MshParserError::from_error_kind(i, kind.clone()).into_nom_error())
+    move |i: I| Err(make_error(i, kind.clone()))
+}
+
+/// Returns a combinator that appends an if the callable returns an error
+pub(crate) fn error<I: Clone, F, O>(
+    kind: MshParserErrorKind,
+    f: F,
+) -> impl Fn(I) -> IResult<I, O, MshParserError<I>>
+where
+    F: Fn(I) -> IResult<I, O, MshParserError<I>>,
+{
+    move |i: I| f(i.clone()).with_error(i, kind.clone())
 }
 
 /// Returns a combinator that appends a context message if the callable returns an error
@@ -21,7 +36,7 @@ pub(crate) fn context<I: Clone, F, O>(
 where
     F: Fn(I) -> IResult<I, O, MshParserError<I>>,
 {
-    move |i: I| f(i.clone()).map_msh_err(|e| e.with_context(i, ctx.clone()))
+    move |i: I| f(i.clone()).with_context(i, ctx)
 }
 
 /// Returns a combinator that appends a context message obtained from the callable if the callable returns an error
@@ -33,7 +48,7 @@ where
     C: Fn() -> S,
     F: Fn(I) -> IResult<I, O, MshParserError<I>>,
 {
-    move |i: I| f(i.clone()).map_msh_err(|e| e.with_context(i, ctx()))
+    move |i: I| f(i.clone()).with_context(i, ctx())
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, thiserror::Error)]
@@ -55,16 +70,20 @@ pub enum MshParserErrorKind {
     SectionHeaderInvalid,
     #[error("An unknown element type was encountered in the MSH file.")]
     ElementUnknown,
-    #[error("Unimplemented: The number of nodes for an element encountered in the MSH file does not belong to a known element type.")]
-    ElementNumNodesUnknown,
     #[error("There are too many entities to parse them into contiguous memory on the current system (usize type too small).")]
     TooManyEntities,
     #[error("A {0} value could not be parsed because it was out of range of the target data type.")]
     ValueOutOfRange(ValueType),
-    #[error("An invalid entity tag was detected.")]
+    #[error("An invalid entity tag value was detected.")]
     InvalidTag,
+    #[error("An invalid parameter value was detected.")]
+    InvalidParameter,
     #[error("An invalid element definition was encountered.")]
     InvalidElementDefinition,
+    #[error("An invalid node definition was encountered.")]
+    InvalidNodeDefinition,
+    #[error("An unimplemented feature was detected.")]
+    Unimplemented,
     #[error("{0}")]
     Context(Cow<'static,str>),
     #[error("{0:?}")]
@@ -125,12 +144,10 @@ impl<I> MshParserError<I> {
         nom::Err::Error(self)
     }
 
-    /*
     /// Wraps the error into a (unrecoverable) nom::Err::Failure
     pub(crate) fn into_nom_failure(self) -> nom::Err<Self> {
         nom::Err::Failure(self)
     }
-    */
 
     /// Append an error to the backtrace with the given input and error kind
     pub(crate) fn with_append(mut self, input: I, kind: MshParserErrorKind) -> Self {
@@ -268,6 +285,16 @@ pub(crate) trait MapMshError<I> {
         Self: Sized,
     {
         self.map_msh_err(|e| e.with_context(input, ctx()))
+    }
+}
+
+/// Implementation that allows to map a MshParserError inside of an nom::Err, if it contains one
+impl<I> MapMshError<I> for nom::Err<MshParserError<I>> {
+    fn map_msh_err<F>(self, f: F) -> Self
+    where
+        F: FnOnce(MshParserError<I>) -> MshParserError<I>,
+    {
+        self.map(f)
     }
 }
 

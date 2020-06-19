@@ -3,7 +3,9 @@ use std::collections::HashMap;
 use nom::IResult;
 use num::traits::FromPrimitive;
 
-use crate::error::{context, context_from, error, MapMshError, MshParserError, MshParserErrorKind};
+use crate::error::{
+    always_error, context, make_error, MapMshError, MshParserError, MshParserErrorKind,
+};
 use crate::mshfile::{Element, ElementBlock, ElementType, Elements, MshHeader, MshIntT, MshUsizeT};
 use crate::parsers::general_parsers::{count_indexed, verify_or};
 use crate::parsers::num_parsers;
@@ -88,7 +90,7 @@ where
             |tag| *tag != 0,
             context(
                 "Element tag 0 is reserved for internal use",
-                error(MshParserErrorKind::InvalidTag),
+                always_error(MshParserErrorKind::InvalidTag),
             ),
         ),
     )(input)?;
@@ -99,7 +101,7 @@ where
             |max_tag| *max_tag >= min_element_tag,
             context(
                 "The maximum element tag has to be larger or equal to the minimum element tag",
-                error(MshParserErrorKind::InvalidTag),
+                always_error(MshParserErrorKind::InvalidTag),
             ),
         ),
     )(input)?;
@@ -137,13 +139,12 @@ where
         context("number of elements in element block", to_usize_parser)(input)?;
 
     // Try to get the number of nodes per element
-    let num_nodes_per_element = match element_type.nodes() {
-        Ok(v) => v,
-        Err(_) => {
-            // This can only happen if the .nodes() implementation is not in sync with the ElementType enum
-            return error(MshParserErrorKind::ElementNumNodesUnknown)(input);
-        }
-    };
+    let num_nodes_per_element = element_type.nodes().map_err(|_| {
+        make_error(input, MshParserErrorKind::Unimplemented).with_context(
+            input,
+            "An element type encountered in the MSH file does not have a known number of nodes.",
+        )
+    })?;
 
     // Parse every element definition
     let (input, elements) = count_indexed(
@@ -198,20 +199,17 @@ where
     let (input_new, element_type_raw) = int_parser(input)?;
 
     // Try to convert it into i32 (because this is the underlying type of our enum)
-    let element_type_raw = element_type_raw.to_i32().ok_or_else(|| {
-        MshParserErrorKind::ElementUnknown
-            .into_error(input)
-            .into_nom_error()
-    })?;
+    let element_type_raw = element_type_raw
+        .to_i32()
+        .ok_or_else(|| make_error(input, MshParserErrorKind::ElementUnknown))?;
 
     // Try to construct a element type variant from the i32 value
-    match ElementType::from_i32(element_type_raw) {
-        Some(element_type) => Ok((input_new, element_type)),
-        None => context_from(
-            || format!("value {}", element_type_raw),
-            error(MshParserErrorKind::ElementUnknown),
-        )(input),
-    }
+    let element_type = ElementType::from_i32(element_type_raw).ok_or_else(|| {
+        make_error(input, MshParserErrorKind::ElementUnknown)
+            .with_context_from(input, || format!("value {}", element_type_raw))
+    })?;
+
+    Ok((input_new, element_type))
 }
 
 fn parse_element<'a, U, SizeTParser>(
