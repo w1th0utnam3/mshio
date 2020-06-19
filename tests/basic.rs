@@ -1,51 +1,13 @@
-use std::fs::OpenOptions;
-use std::io::{BufReader, Read};
-
 use mshio::mshfile::ElementType;
 
-fn read_bytes(path: &str) -> Vec<u8> {
-    let file = OpenOptions::new()
-        .read(true)
-        .write(false)
-        .create(false)
-        .open(path)
-        .unwrap();
-    let mut buf_reader = BufReader::new(file);
+#[macro_use]
+mod utils;
 
-    let mut data = Vec::new();
-    buf_reader.read_to_end(&mut data).unwrap();
-    data
-}
-
-/// Returns whether the supplied data can be parsed successfully as a MSH file
-fn msh_parses(msh: &[u8]) -> bool {
-    match mshio::parse_msh_bytes(msh) {
-        Ok(_) => true,
-        Err(err) => {
-            println!("Test error:\n{}", err);
-            println!("Error debug: {:?}", err);
-            false
-        }
-    }
-}
-
-macro_rules! intended_error_output {
-    ($error_expr:expr) => {
-        println!("--- Start of intentionally provoked error output ---");
-        $error_expr;
-        println!("--- End of intentionally provoked error output ---");
-        println!("")
-    };
-}
-
-#[test]
-fn test_does_nothing() {
-    assert!(true);
-}
+use crate::utils::*;
 
 #[test]
 fn test_simple_bin_file() {
-    let circle_2d_bin = read_bytes("tests/circle_2d_bin.msh");
+    let circle_2d_bin = read_test_mesh("circle_2d_bin.msh");
     assert!(msh_parses(&circle_2d_bin));
 
     let msh = mshio::parse_msh_bytes(&circle_2d_bin).unwrap();
@@ -59,7 +21,7 @@ fn test_simple_bin_file() {
 
 #[test]
 fn test_simple_ascii_file() {
-    let circle_2d = read_bytes("tests/circle_2d.msh");
+    let circle_2d = read_test_mesh("circle_2d.msh");
     assert!(msh_parses(&circle_2d));
 
     let msh = mshio::parse_msh_bytes(&circle_2d).unwrap();
@@ -72,15 +34,9 @@ fn test_simple_ascii_file() {
 }
 
 #[test]
-fn test_simple_ascii_file_error() {
-    let circle_2d = read_bytes("tests/circle_2d_error.msh");
-    intended_error_output!(assert!(!msh_parses(&circle_2d)));
-}
-
-#[test]
 fn test_compare_simple_ascii_bin() {
-    let circle_2d_bin_raw = read_bytes("tests/circle_2d_bin.msh");
-    let circle_2d_raw = read_bytes("tests/circle_2d.msh");
+    let circle_2d_bin_raw = read_test_mesh("circle_2d_bin.msh");
+    let circle_2d_raw = read_test_mesh("circle_2d.msh");
 
     let msh_bin = mshio::parse_msh_bytes(&circle_2d_bin_raw).unwrap();
     let msh_ascii = mshio::parse_msh_bytes(&circle_2d_raw).unwrap();
@@ -91,7 +47,7 @@ fn test_compare_simple_ascii_bin() {
 
 #[test]
 fn test_fine_bin_file() {
-    let circle_2d_bin = read_bytes("tests/circle_2d_fine_bin.msh");
+    let circle_2d_bin = read_test_mesh("circle_2d_fine_bin.msh");
     assert!(msh_parses(&circle_2d_bin));
 
     let msh = mshio::parse_msh_bytes(&circle_2d_bin).unwrap();
@@ -105,7 +61,7 @@ fn test_fine_bin_file() {
 
 #[test]
 fn test_t13_bin_file() {
-    let msh_bin = read_bytes("tests/t13_data.msh");
+    let msh_bin = read_test_mesh("t13_data.msh");
     assert!(msh_parses(&msh_bin));
 
     let msh = mshio::parse_msh_bytes(&msh_bin).unwrap();
@@ -120,7 +76,7 @@ fn test_t13_bin_file() {
 
 #[test]
 fn test_cylinder_bin_file() {
-    let msh_bin = read_bytes("tests/cylinder_3d.msh");
+    let msh_bin = read_test_mesh("cylinder_3d.msh");
     assert!(msh_parses(&msh_bin));
 
     let msh = mshio::parse_msh_bytes(&msh_bin).unwrap();
@@ -134,7 +90,7 @@ fn test_cylinder_bin_file() {
 
 #[test]
 fn test_sphere_point_entities_file_ascii() {
-    let msh_bin = read_bytes("tests/sphere_coarse.msh");
+    let msh_bin = read_test_mesh("sphere_coarse.msh");
     assert!(msh_parses(&msh_bin));
 
     let msh = mshio::parse_msh_bytes(&msh_bin).unwrap();
@@ -156,7 +112,7 @@ fn test_sphere_point_entities_file_ascii() {
 
 #[test]
 fn test_sphere_point_entities_file_bin() {
-    let msh_bin = read_bytes("tests/sphere_coarse_bin.msh");
+    let msh_bin = read_test_mesh("sphere_coarse_bin.msh");
     assert!(msh_parses(&msh_bin));
 
     let msh = mshio::parse_msh_bytes(&msh_bin).unwrap();
@@ -193,39 +149,8 @@ $EndComment
 }
 
 #[test]
-fn test_invalid_section() {
-    let msh = "\
-$MeshFormat
-4.1 0 8
-$EndMeshFormat
-$Comment
-$EndComment
-Hello
-
-";
-    intended_error_output!(assert!(!msh_parses(msh.as_bytes())));
-}
-
-#[test]
-fn test_unsupported_msh_version_ascii() {
-    let msh = "\
-$MeshFormat
-27.1 0 8
-$EndMeshFormat
-
-";
-    intended_error_output!(assert!(!msh_parses(msh.as_bytes())));
-}
-
-#[test]
-fn test_old_msh_version_bin() {
-    let msh = read_bytes("tests/old_msh_version.msh");
-    intended_error_output!(assert!(!msh_parses(&msh)));
-}
-
-#[test]
 fn test_coarse_bike_file() {
-    let msh = read_bytes("tests/bike_coarse.obj_linear.msh");
+    let msh = read_test_mesh("bike_coarse.obj_linear.msh");
     assert!(msh_parses(&msh));
 
     let msh = mshio::parse_msh_bytes(&msh).unwrap();
@@ -239,7 +164,7 @@ fn test_coarse_bike_file() {
 
 #[test]
 fn test_fine_bike_file() {
-    let msh = read_bytes("tests/bike_original.obj_linear.msh");
+    let msh = read_test_mesh("bike_original.obj_linear.msh");
     assert!(msh_parses(&msh));
 
     let msh = mshio::parse_msh_bytes(&msh).unwrap();
@@ -253,7 +178,7 @@ fn test_fine_bike_file() {
 
 #[test]
 fn test_fine_bike_curved_file() {
-    let msh = read_bytes("tests/bike_original.obj_curved.msh");
+    let msh = read_test_mesh("bike_original.obj_curved.msh");
     assert!(msh_parses(&msh));
 
     let msh = mshio::parse_msh_bytes(&msh).unwrap();

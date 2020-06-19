@@ -9,7 +9,7 @@
 //!
 //! fn main() -> Result<(), Box<dyn Error>> {
 //!     // Try to read and parse a MSH file
-//!     let msh_bytes = fs::read("tests/sphere_coarse.msh")?;
+//!     let msh_bytes = fs::read("tests/data/sphere_coarse.msh")?;
 //!     let parser_result = mshio::parse_msh_bytes(msh_bytes.as_slice());
 //!
 //!     // Note that the a parser error cannot be propagated directly using the ?-operator, as it
