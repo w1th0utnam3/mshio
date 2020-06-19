@@ -2,6 +2,8 @@ use std::fs::OpenOptions;
 use std::io::{BufReader, Read};
 use std::path::Path;
 
+use mshio::MshParserError;
+
 /// Relative path to the directory containing the test mesh data
 static TEST_DATA_DIR: &'static str = "tests/data";
 
@@ -30,20 +32,24 @@ pub fn msh_parses(msh: &[u8]) -> bool {
     match mshio::parse_msh_bytes(msh) {
         Ok(_) => true,
         Err(err) => {
-            println!("Test error:\n{}", err);
-            println!("Error debug: {:?}", err);
+            print_error_report(&err);
             false
         }
     }
 }
 
+pub fn print_error_report(error: &MshParserError<&[u8]>) {
+    eprintln!("Test error:\n{}", error);
+    eprintln!("Error debug: {:?}", error);
+}
+
 /// Wraps print statements around an expression that inform the user that error output is intended
 #[macro_export]
 macro_rules! intended_error_output {
-    ($error_expr:expr) => {
-        println!("--- Start of intentionally provoked error output ---");
+    ($test_name:ident, $error_expr:expr) => {
+        eprintln!("--- Start of intentionally provoked error output ({}) ---", stringify!($test_name));
         {$error_expr};
-        println!("--- End of intentionally provoked error output ---");
+        eprintln!("--- End of intentionally provoked error output ({}) ---", stringify!($test_name));
         println!("")
     };
 }

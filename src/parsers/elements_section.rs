@@ -6,7 +6,7 @@ use num::traits::FromPrimitive;
 
 use crate::error::{context, error, MshParserError, MshParserErrorKind};
 use crate::mshfile::{Element, ElementBlock, ElementType, Elements, MshHeader, MshIntT, MshUsizeT};
-use crate::parsers::general_parsers::verify_or;
+use crate::parsers::general_parsers::{count_indexed, verify_or};
 use crate::parsers::num_parsers;
 
 pub(crate) fn parse_element_section<'a, 'b: 'a>(
@@ -171,8 +171,17 @@ where
     };
 
     // Parse every element definition
-    let (input, elements) = count(
-        context("element definition", parse_element),
+    let (input, elements) = count_indexed(
+        |index, input| {
+            context(
+                format!(
+                    "element definition ({} of {})",
+                    index + 1,
+                    num_elements_in_block
+                ),
+                parse_element,
+            )(input)
+        },
         num_elements_in_block,
     )(input_new)?;
 

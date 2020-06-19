@@ -29,7 +29,7 @@ where
     }
 }
 
-#[derive(Copy, Clone, Debug, thiserror::Error)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum ValueType {
     #[error("unsigned integer")]
     UnsignedInt,
@@ -40,7 +40,7 @@ pub enum ValueType {
 }
 
 #[rustfmt::skip]
-#[derive(Clone, Debug, thiserror::Error)]
+#[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum MshParserErrorKind {
     #[error("MSH file of unsupported version loaded. Only the MSH file format specification of version 4.1 is supported.")]
     MshVersionUnsupported,
@@ -142,7 +142,7 @@ impl<I> MshParserError<I> {
         self.backtrace.iter().filter(|(_, e)| !e.is_nom_error())
     }
 
-    /// Returns the first error in the backtrace that is not an internal nom error
+    /// Returns the kind of the first error in the backtrace that is not an internal nom error
     pub fn first_msh_error(&self) -> Option<MshParserErrorKind> {
         self.begin_msh_errors().next().map(|(_, ek)| ek).cloned()
     }
