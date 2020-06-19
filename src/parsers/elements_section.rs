@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use nom::multi::count;
 use nom::IResult;
 use num::traits::FromPrimitive;
 
@@ -69,11 +68,16 @@ pub(crate) fn parse_element_section<'a, 'b: 'a>(
         };
 
         // Parse the individual element entity blocks
-        let (input, element_entity_blocks) = count(
-            |i| {
-                context("element entity block", |i| {
-                    parse_element_entity(&size_t_parser, &int_parser, sparse_tags, i)
-                })(i)
+        let (input, element_entity_blocks) = count_indexed(
+            |index, input| {
+                context(
+                    format!(
+                        "element entity block ({} of {})",
+                        index + 1,
+                        num_entity_blocks
+                    ),
+                    |i| parse_element_entity(&size_t_parser, &int_parser, sparse_tags, i),
+                )(input)
             },
             num_entity_blocks,
         )(input)?;
