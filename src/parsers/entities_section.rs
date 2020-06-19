@@ -1,6 +1,5 @@
 use nom::multi::count;
 use nom::IResult;
-use num::cast::ToPrimitive;
 
 use crate::error::{context, MshParserError};
 use crate::mshfile::{
@@ -14,10 +13,12 @@ pub(crate) fn parse_entity_section<'a, 'b: 'a>(
     let header = header.clone();
     move |input| {
         let size_t_parser = num_parsers::uint_parser::<u64>(header.size_t_size, header.endianness);
-        let (input, num_points) = size_t_parser(input)?;
-        let (input, num_curves) = size_t_parser(input)?;
-        let (input, num_surfaces) = size_t_parser(input)?;
-        let (input, num_volumes) = size_t_parser(input)?;
+        let to_usize_parser = num_parsers::usize_parser(&size_t_parser);
+
+        let (input, num_points) = context("number of point entities", &to_usize_parser)(input)?;
+        let (input, num_curves) = context("number of curve entities", &to_usize_parser)(input)?;
+        let (input, num_surfaces) = context("number of surface entities", &to_usize_parser)(input)?;
+        let (input, num_volumes) = context("number of volume entities", &to_usize_parser)(input)?;
 
         let int_parser = num_parsers::int_parser::<i32>(header.int_size, header.endianness);
         let double_parser = num_parsers::float_parser::<f64>(header.float_size, header.endianness);
@@ -26,7 +27,7 @@ pub(crate) fn parse_entity_section<'a, 'b: 'a>(
             "Point entity section",
             count(
                 |i| parse_point(&size_t_parser, &int_parser, &double_parser, i),
-                num_points.to_usize().unwrap(), // TODO,
+                num_points,
             ),
         )(input)?;
 
@@ -34,7 +35,7 @@ pub(crate) fn parse_entity_section<'a, 'b: 'a>(
             "Curve entity section",
             count(
                 |i| parse_curve(&size_t_parser, &int_parser, &double_parser, i),
-                num_curves.to_usize().unwrap(), // TODO,
+                num_curves,
             ),
         )(input)?;
 
@@ -42,7 +43,7 @@ pub(crate) fn parse_entity_section<'a, 'b: 'a>(
             "Surface entity section",
             count(
                 |i| parse_surface(&size_t_parser, &int_parser, &double_parser, i),
-                num_surfaces.to_usize().unwrap(), // TODO,
+                num_surfaces,
             ),
         )(input)?;
 
@@ -50,7 +51,7 @@ pub(crate) fn parse_entity_section<'a, 'b: 'a>(
             "Volume entity section",
             count(
                 |i| parse_volume(&size_t_parser, &int_parser, &double_parser, i),
-                num_volumes.to_usize().unwrap(), // TODO,
+                num_volumes,
             ),
         )(input)?;
 
