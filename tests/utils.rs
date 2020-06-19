@@ -47,9 +47,17 @@ pub fn print_error_report(error: &MshParserError<&[u8]>) {
 #[macro_export]
 macro_rules! intended_error_output {
     ($test_name:ident, $error_expr:expr) => {
-        eprintln!("--- Start of intentionally provoked error output ({}) ---", stringify!($test_name));
-        {$error_expr};
-        eprintln!("--- End of intentionally provoked error output ({}) ---", stringify!($test_name));
+        eprintln!(
+            "--- Start of intentionally provoked error output ({}) ---",
+            stringify!($test_name)
+        );
+        {
+            $error_expr
+        };
+        eprintln!(
+            "--- End of intentionally provoked error output ({}) ---",
+            stringify!($test_name)
+        );
         println!("")
     };
 }

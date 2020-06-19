@@ -4,6 +4,7 @@ mod utils;
 use crate::utils::*;
 use mshio::error::MshParserErrorKind;
 
+/// Generates a test case that expects parsing of a MSH file given by string fails with the given error
 macro_rules! simple_error_test {
     ($test_name:ident, $expected_error:expr, $mesh_string:expr) => {
         #[test]
