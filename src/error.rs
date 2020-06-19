@@ -6,7 +6,7 @@ use std::fmt::{Debug, Display};
 use nom::error::{ErrorKind, ParseError};
 use nom::{HexDisplay, IResult};
 
-/// Returns a combinator that returns an error of the specified kind
+/// Returns a combinator that always returns an error of the specified kind
 pub(crate) fn error<I, O>(
     kind: MshParserErrorKind,
 ) -> impl Fn(I) -> IResult<I, O, MshParserError<I>> {
@@ -14,19 +14,26 @@ pub(crate) fn error<I, O>(
 }
 
 /// Returns a combinator that appends a context message if the callable returns an error
-pub(crate) fn context<I: Clone, F, O, S: Clone + Into<Cow<'static, str>>>(
-    ctx: S,
+pub(crate) fn context<I: Clone, F, O>(
+    ctx: &'static str,
     f: F,
 ) -> impl Fn(I) -> IResult<I, O, MshParserError<I>>
 where
     F: Fn(I) -> IResult<I, O, MshParserError<I>>,
 {
-    move |i: I| match f(i.clone()) {
-        Ok(o) => Ok(o),
-        Err(nom::Err::Incomplete(i)) => Err(nom::Err::Incomplete(i)),
-        Err(nom::Err::Error(e)) => Err(nom::Err::Error(e.with_context(i, ctx.clone()))),
-        Err(nom::Err::Failure(e)) => Err(nom::Err::Failure(e.with_context(i, ctx.clone()))),
-    }
+    move |i: I| f(i.clone()).map_msh_err(|e| e.with_context(i, ctx.clone()))
+}
+
+/// Returns a combinator that appends a context message obtained from the callable if the callable returns an error
+pub(crate) fn context_from<I: Clone, C, F, O, S: Clone + Into<Cow<'static, str>>>(
+    ctx: C,
+    f: F,
+) -> impl Fn(I) -> IResult<I, O, MshParserError<I>>
+where
+    C: Fn() -> S,
+    F: Fn(I) -> IResult<I, O, MshParserError<I>>,
+{
+    move |i: I| f(i.clone()).map_msh_err(|e| e.with_context(i, ctx()))
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, thiserror::Error)]
@@ -56,6 +63,8 @@ pub enum MshParserErrorKind {
     ValueOutOfRange(ValueType),
     #[error("An invalid entity tag was detected.")]
     InvalidTag,
+    #[error("An invalid element definition was encountered.")]
+    InvalidElementDefinition,
     #[error("{0}")]
     Context(Cow<'static,str>),
     #[error("{0:?}")]
@@ -63,7 +72,7 @@ pub enum MshParserErrorKind {
 }
 
 impl MshParserErrorKind {
-    pub fn into_error<I>(self, input: I) -> MshParserError<I> {
+    pub(crate) fn into_error<I>(self, input: I) -> MshParserError<I> {
         MshParserError::from_error_kind(input, self)
     }
 
@@ -105,30 +114,32 @@ impl<I> MshParserError<I> {
     }
 
     /// Construct a new error with the given input and error kind
-    pub fn from_error_kind(input: I, kind: MshParserErrorKind) -> Self {
+    pub(crate) fn from_error_kind(input: I, kind: MshParserErrorKind) -> Self {
         Self {
             backtrace: vec![(input, kind)],
         }
     }
 
     /// Wraps the error into a (recoverable) nom::Err::Error
-    pub fn into_nom_error(self) -> nom::Err<Self> {
+    pub(crate) fn into_nom_error(self) -> nom::Err<Self> {
         nom::Err::Error(self)
     }
 
+    /*
     /// Wraps the error into a (unrecoverable) nom::Err::Failure
-    pub fn into_nom_failure(self) -> nom::Err<Self> {
+    pub(crate) fn into_nom_failure(self) -> nom::Err<Self> {
         nom::Err::Failure(self)
     }
+    */
 
     /// Append an error to the backtrace with the given input and error kind
-    pub fn with_append(mut self, input: I, kind: MshParserErrorKind) -> Self {
+    pub(crate) fn with_append(mut self, input: I, kind: MshParserErrorKind) -> Self {
         self.backtrace.push((input, kind));
         self
     }
 
     /// Append a context message to the backtrace
-    pub fn with_context<S: Into<Cow<'static, str>>>(self, input: I, ctx: S) -> Self {
+    pub(crate) fn with_context<S: Into<Cow<'static, str>>>(self, input: I, ctx: S) -> Self {
         self.with_append(input, MshParserErrorKind::Context(ctx.into()))
     }
 
@@ -226,5 +237,46 @@ impl<I: Debug, E: Into<MshParserError<I>>> From<nom::Err<E>> for MshParserError<
             nom::Err::Error(ve) | nom::Err::Failure(ve) => ve.into(),
             _ => Self::new(),
         }
+    }
+}
+
+pub(crate) trait MapMshError<I> {
+    /// Maps the MshParserError if self contains an error
+    fn map_msh_err<F>(self, f: F) -> Self
+    where
+        F: FnOnce(MshParserError<I>) -> MshParserError<I>;
+
+    /// Appends the specified error if self already contains an error
+    fn with_error(self, input: I, kind: MshParserErrorKind) -> Self
+    where
+        Self: Sized,
+    {
+        self.map_msh_err(|e| e.with_append(input, kind))
+    }
+
+    /// Appends the given context if self already contains an error
+    fn with_context<S: Into<Cow<'static, str>>>(self, input: I, ctx: S) -> Self
+    where
+        Self: Sized,
+    {
+        self.map_msh_err(|e| e.with_context(input, ctx))
+    }
+
+    /// Obtains a context from the given callable if self already contains an error
+    fn with_context_from<S: Into<Cow<'static, str>>, C: Fn() -> S>(self, input: I, ctx: C) -> Self
+    where
+        Self: Sized,
+    {
+        self.map_msh_err(|e| e.with_context(input, ctx()))
+    }
+}
+
+/// Implementation that allows to map a MshParserError inside of an IResult, if it contains one
+impl<I, O> MapMshError<I> for IResult<I, O, MshParserError<I>> {
+    fn map_msh_err<F>(self, f: F) -> Self
+    where
+        F: FnOnce(MshParserError<I>) -> MshParserError<I>,
+    {
+        self.map_err(|err| err.map(f))
     }
 }

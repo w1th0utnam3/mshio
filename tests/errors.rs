@@ -83,10 +83,9 @@ $EndElements\
 "
 );
 
-/*
 simple_error_test!(
     test_wrong_element_amount,
-    MshParserErrorKind::SectionHeaderInvalid,
+    MshParserErrorKind::InvalidElementDefinition,
     "\
 $MeshFormat
 4.1 0 8
@@ -102,4 +101,3 @@ $Elements
 $EndElements\
 "
 );
-*/
