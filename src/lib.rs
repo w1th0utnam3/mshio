@@ -32,18 +32,19 @@
 //! `Elements`. All other sections are silently ignored, if they follow the pattern of being
 //! delimited by `$SectionName` and `$EndSectionName`.
 //!
+//! Note that the mesh definition is not checked for consistency. This means, that a parsed element
+//! may refer to node indices that are not present in the node section (if the MSH file contains
+//! such an inconsistency). In the future, utitliy functions may be added to check this.
+//!
 //! Although the `MshFile` struct and all related structs are generic over their float and integer
-//! types, the `parse_msh_bytes` function enforces the usage of `f64`, `i32` and `usize` types as
+//! types, the `parse_msh_bytes` function enforces the usage of `f64`, `i32` and `u64` types as
 //! we did not encounter MSH files with different types and cannot test it. The MSH format
 //! documentation does not specify the size of the float and integer types.
 //! Narrowing conversions should be performed manually by the user after parsing the file.
 //!
-//! Note that the `usize` type is used to index nodes and elements. If the system's `usize` type
-//! is too small to hold the `size_t` type defined in the header of the MSH file, the parser
-//! will return an error. This can be the case if a mesh written on a 64-bit machine is loaded on a
-//! 32-bit machine. This might be fixed in a later release to allow to read such meshes as long
-//! as the total number of elements/nodes in a block fits into `usize` (otherwise they cannot be
-//! stored in a `Vec` anyway).
+//! Note that when loading collections of elements/nodes and other entities, the parser checks if
+//! the number of these objects can be represented in the system's `usize` type. If this is not the
+//! case it returns an error as they cannot be stored in a `Vec` in this case.
 //!
 
 use std::convert::{TryFrom, TryInto};
@@ -82,7 +83,7 @@ use parsers::{
 // TODO: Unify element and node section parsing
 //  (e.g. a single section parser, then per section type one header and one content parser)
 // TODO: Unify entity parsing (currently, point parsers and the curve/surface/volume parsers are separate)
-// TODO: Make section parsers generic over data types (i.e. don't mandate f64, u64, i64)
+// TODO: Make section parsers generic over data types (i.e. don't mandate f64, u64, i32)
 
 // TODO: Implement parser for physical groups
 // TODO: Log in the MeshData struct which unknown sections were ignored
