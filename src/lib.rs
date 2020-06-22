@@ -72,7 +72,7 @@ pub use error::MshParserError;
 /// Re-exports all types that are used to represent the structure of an MSH file
 pub use mshfile::*;
 
-use crate::error::MshParserErrorKind;
+use crate::error::{make_error, MapMshError, MshParserErrorKind};
 use error::{always_error, context};
 use parsers::{br, take_sp};
 use parsers::{
@@ -221,19 +221,24 @@ fn private_parse_msh_bytes<'a>(
     let entities = match entity_sections.len() {
         1 => Some(entity_sections.remove(0)),
         0 => None,
-        _ => unimplemented!("More than one entity section found"),
+        _ => {
+            return Err(make_error(input, MshParserErrorKind::Unimplemented)
+                .with_context(input, "Multiple entity sections found in the MSH file, this cannot be handled at the moment."))
+        }
     };
 
     let nodes = match node_sections.len() {
         1 => Some(node_sections.remove(0)),
         0 => None,
-        _ => unimplemented!("More than one node section found"),
+        _ => return Err(make_error(input, MshParserErrorKind::Unimplemented)
+            .with_context(input, "Multiple node sections found in the MSH file, this cannot be handled at the moment.")),
     };
 
     let elements = match element_sections.len() {
         1 => Some(element_sections.remove(0)),
         0 => None,
-        _ => unimplemented!("More than one element section found"),
+        _ => return Err(make_error(input, MshParserErrorKind::Unimplemented)
+            .with_context(input, "Multiple element sections found in the MSH file, this cannot be handled at the moment.")),
     };
 
     Ok((

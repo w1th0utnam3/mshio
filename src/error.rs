@@ -76,6 +76,8 @@ pub enum MshParserErrorKind {
     TooManyEntities,
     #[error("A {0} value could not be parsed because it was out of range of the target data type.")]
     ValueOutOfRange(ValueType),
+    #[error("There is no parser available to parse binary {0} values with a size of {1}.")]
+    UnsupportedTypeSize(ValueType, usize),
     #[error("An invalid entity tag value was detected.")]
     InvalidTag,
     #[error("An invalid parameter value was detected.")]
