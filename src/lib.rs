@@ -80,13 +80,17 @@ use parsers::{
 
 // TODO: Instantiate parsers only once
 // TODO: Unify element and node section parsing
-// TODO: Make section parser generic over data types
+//  (e.g. a single section parser, then per section type one header and one content parser)
+// TODO: Unify entity parsing (currently, point parsers and the curve/surface/volume parsers are separate)
+// TODO: Make section parsers generic over data types (i.e. don't mandate f64, u64, i64)
 
 // TODO: Implement parser for physical groups
 // TODO: Log in the MeshData struct which sections were ignored
 // TODO: Replace panic!, unimplemented!, unwrap and expect calls with Err
 // TODO: Add more context calls for all levels of parsers
 
+// TODO: Add tests for errors in node section
+// TODO: Add tests for errors in entity section
 // TODO: Add tests that try to parse a mesh with u64 indices to u32
 
 /// Debug helper to view u8 slice as utf8 str and print it

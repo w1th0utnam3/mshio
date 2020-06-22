@@ -4,7 +4,8 @@ use nom::multi::count;
 use nom::IResult;
 
 use crate::error::{
-    always_error, context, error, make_error, MapMshError, MshParserError, MshParserErrorKind,
+    always_error, context, context_from, error, make_error, MapMshError, MshParserError,
+    MshParserErrorKind,
 };
 use crate::mshfile::{MshFloatT, MshHeader, MshIntT, MshUsizeT, Node, NodeBlock, Nodes};
 use crate::parsers::num_parsers;
@@ -168,7 +169,10 @@ where
         context(
             "node tags",
             count(
-                error(MshParserErrorKind::InvalidTag, &size_t_parser),
+                context_from(
+                    || format!("Expected {} valid node tags", num_nodes_in_block),
+                    error(MshParserErrorKind::InvalidTag, &size_t_parser),
+                ),
                 num_nodes_in_block,
             ),
         )(input)
