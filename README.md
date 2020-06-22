@@ -7,7 +7,7 @@ Parser library for the Gmsh MSH file format (version 4.1)
 The library supports parsing ASCII and binary encoded MSH files adhering to the MSH file format
 version 4.1 as specified in the [Gmsh documention](http://gmsh.info/doc/texinfo/gmsh.html#MSH-file-format).
 
-```
+```rust
 use std::error::Error;
 use std::fs;
 
