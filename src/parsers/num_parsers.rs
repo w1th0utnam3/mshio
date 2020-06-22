@@ -15,7 +15,7 @@ use crate::error::{always_error, make_error, MshParserError, MshParserErrorKind,
 use crate::mshfile::MshUsizeT;
 use crate::parsers::{recognize_integer, ws};
 
-// TODO: Remove Copy trait bounds on parsers
+// TODO: Replace the unimplemented! calls with errors
 
 pub fn usize_parser<'a, U, SizeTParser>(
     size_t_parser: SizeTParser,
@@ -80,6 +80,7 @@ pub fn uint_parser<'a, T: Unsigned + Integer + NumCast + str::FromStr>(
             }
         },
         None => {
+            // TODO: Replace this expect
             (|i| match ws(map(digit1, |items| {
                 str::FromStr::from_str(str::from_utf8(items).expect("Cannot parse UTF8 to digits"))
             }))(i)
@@ -143,6 +144,7 @@ pub fn int_parser<'a, T: Signed + Integer + NumCast + str::FromStr>(
             }
         },
         None => {
+            // TODO: Replace this expect
             (|i| match ws(map(recognize_integer, |items| {
                 str::FromStr::from_str(str::from_utf8(items).expect("Cannot parse UTF8 to integer"))
             }))(i)

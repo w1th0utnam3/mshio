@@ -85,12 +85,12 @@ use parsers::{
 // TODO: Make section parsers generic over data types (i.e. don't mandate f64, u64, i64)
 
 // TODO: Implement parser for physical groups
-// TODO: Log in the MeshData struct which sections were ignored
-// TODO: Replace panic!, unimplemented!, unwrap and expect calls with Err
-// TODO: Add more context calls for all levels of parsers
+// TODO: Log in the MeshData struct which unknown sections were ignored
+// TODO: Add more .context() calls/more specialized errors
+// TODO: Replace remaining unimplemented!/expect calls with errors
 
-// TODO: Add tests for errors in node section
-// TODO: Add tests for errors in entity section
+// TODO: Add tests of errors in node section
+// TODO: Add tests of errors in entity section
 // TODO: Add tests that try to parse a mesh with u64 indices to u32
 
 /// Debug helper to view u8 slice as utf8 str and print it
@@ -214,6 +214,8 @@ fn private_parse_msh_bytes<'a>(
             return always_error(MshParserErrorKind::InvalidSectionHeader)(input);
         }
     }
+
+    // TODO: Replace the unimplemented! calls with errors
 
     let entities = match entity_sections.len() {
         1 => Some(entity_sections.remove(0)),

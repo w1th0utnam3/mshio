@@ -16,7 +16,9 @@ use crate::parsers::{br, sp, verify_or};
 pub(crate) fn parse_header_section<'a>(
     input: &'a [u8],
 ) -> IResult<&'a [u8], MshHeader, MshParserError<&'a [u8]>> {
-    let from_u8 = |items| str::FromStr::from_str(str::from_utf8(items).unwrap());
+    // TODO: Replace this expect
+    let from_u8 =
+        |items| str::FromStr::from_str(str::from_utf8(items).expect("Cannot parse UTF8 to digits"));
 
     let (input, version) = verify_or(
         numbers::double,

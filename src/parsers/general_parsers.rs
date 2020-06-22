@@ -301,6 +301,7 @@ where
     }
 }
 
+// TODO: Needs doc comment
 /// ```
 /// use nom::character::complete::digit0;
 /// use nom::Err;
@@ -336,6 +337,8 @@ where
     }
 }
 
+// TODO: Needs doc comment
+// TODO: Needs doctest
 pub fn count_indexed<I, O, E, F>(parser: F, counts: usize) -> impl Fn(I) -> IResult<I, Vec<O>, E>
 where
     I: Clone + PartialEq,
