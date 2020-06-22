@@ -48,7 +48,6 @@
 //!
 
 use std::convert::{TryFrom, TryInto};
-use std::str;
 
 use nom::bytes::complete::tag;
 use nom::character::complete::{alpha0, char};
@@ -93,12 +92,6 @@ use parsers::{
 // TODO: Add tests of errors in node section
 // TODO: Add tests of errors in entity section
 // TODO: Add tests that try to parse a mesh with u64 indices to u32
-
-/// Debug helper to view u8 slice as utf8 str and print it
-#[allow(dead_code)]
-fn print_u8(text: &str, input: &[u8]) {
-    println!("{}: '{}'", text, String::from_utf8_lossy(input));
-}
 
 /// Try to parse a MshFile from a slice of bytes
 ///
