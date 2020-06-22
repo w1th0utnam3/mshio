@@ -1,6 +1,6 @@
 [package]
 name = "mshio"
-version = "0.4.0"
+version = "0.4.1"
 authors = ["Fabian Löschner"]
 license = "MIT"
 description = "Parser for the gmsh MSH file format version 4.1"
@@ -9,6 +9,7 @@ edition = "2018"
 
 homepage = "https://github.com/w1th0utnam3/mshio"
 repository = "https://github.com/w1th0utnam3/mshio"
+documentation = "https://docs.rs/mshio"
 
 categories = ["parser-implementations", "science"]
 keywords = ["gmsh", "msh", "parser", "io", "mesh"]
