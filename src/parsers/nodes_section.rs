@@ -27,7 +27,7 @@ pub(crate) fn parse_node_section<'a, 'b: 'a>(
         let double_parser = num_parsers::float_parser::<f64>(header.float_size, header.endianness);
 
         // Parse the section header
-        let (input, node_section_header) = context("Node section header", |input| {
+        let (input, node_section_header) = context("node section header", |input| {
             parse_node_section_header(&size_t_parser, input)
         })(input)?;
 

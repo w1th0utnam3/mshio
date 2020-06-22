@@ -26,7 +26,7 @@ pub(crate) fn parse_element_section<'a, 'b: 'a>(
         let size_t_parser = num_parsers::uint_parser::<u64>(header.size_t_size, header.endianness);
 
         // Parse the section header
-        let (input, element_section_header) = context("Element section header", |input| {
+        let (input, element_section_header) = context("element section header", |input| {
             parse_element_section_header(&size_t_parser, input)
         })(input)?;
 

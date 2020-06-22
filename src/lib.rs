@@ -72,7 +72,7 @@ pub use error::MshParserError;
 pub use mshfile::*;
 
 use crate::error::MshParserErrorKind;
-use error::{context, always_error};
+use error::{always_error, context};
 use parsers::{br, take_sp};
 use parsers::{
     parse_element_section, parse_entity_section, parse_header_section, parse_node_section,
