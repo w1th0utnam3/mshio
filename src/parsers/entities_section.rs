@@ -8,6 +8,8 @@ use crate::mshfile::{
 use crate::parsers::count_indexed;
 use crate::parsers::num_parsers;
 
+// TODO: Additional errors are required when parsing the bounding box values of the entities
+
 struct EntitySectionHeader {
     num_points: usize,
     num_curves: usize,
@@ -116,7 +118,10 @@ where
 {
     let to_usize_parser = num_parsers::usize_parser(&size_t_parser);
 
-    let (input, point_tag) = context("entity tag", &int_parser)(input)?;
+    let (input, point_tag) = context(
+        "entity tag",
+        error(MshParserErrorKind::InvalidTag, &int_parser),
+    )(input)?;
 
     let (input, x) = context("x-coordinate", &double_parser)(input)?;
     let (input, y) = context("y-coordinate", &double_parser)(input)?;
@@ -170,7 +175,10 @@ macro_rules! single_entity_parser {
         {
             let to_usize_parser = num_parsers::usize_parser(&size_t_parser);
 
-            let (input, entity_tag) = context("entity tag", &int_parser)(input)?;
+            let (input, entity_tag) = context(
+                "entity tag",
+                error(MshParserErrorKind::InvalidTag, &int_parser),
+            )(input)?;
 
             let (input, min_x) = context("min x-coordinate", &double_parser)(input)?;
             let (input, min_y) = context("min y-coordinate", &double_parser)(input)?;

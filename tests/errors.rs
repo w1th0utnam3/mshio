@@ -101,3 +101,31 @@ $Elements
 $EndElements\
 "
 );
+
+simple_error_test!(
+    test_wrong_entity_amount,
+    MshParserErrorKind::InvalidTag,
+    "\
+$MeshFormat
+4.1 0 8
+$EndMeshFormat
+$Entities
+0 0 2 0
+0 -1 -1 0 1 1 0 0 0
+$EndEntities\
+"
+);
+
+simple_error_test!(
+    test_wrong_bounding_tag_amount,
+    MshParserErrorKind::InvalidTag,
+    "\
+$MeshFormat
+4.1 0 8
+$EndMeshFormat
+$Entities
+0 0 1 0
+0 -1 -1 0 1 1 0 0 2
+$EndEntities\
+"
+);
