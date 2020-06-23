@@ -3,7 +3,7 @@ name = "mshio"
 version = "0.4.1"
 authors = ["Fabian Löschner"]
 license = "MIT"
-description = "Parser for the gmsh MSH file format version 4.1"
+description = "Parser for the Gmsh MSH file format version 4.1"
 readme = "README.md"
 edition = "2018"
 
