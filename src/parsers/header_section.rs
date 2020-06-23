@@ -10,12 +10,21 @@ use nom::IResult;
 use crate::error::{
     always_error, context, make_error, MapMshError, MshParserError, MshParserErrorKind,
 };
-use crate::mshfile::MshHeader;
+use crate::mshfile::{MshFloatT, MshHeader, MshIntT, MshUsizeT};
+use crate::parsers::num_parser_traits::{ParsesFloat, ParsesInt, ParsesSizeT};
+use crate::parsers::num_parsers;
 use crate::parsers::{br, sp, verify_or};
 
 pub(crate) fn parse_header_section<'a>(
     input: &'a [u8],
-) -> IResult<&'a [u8], MshHeader, MshParserError<&'a [u8]>> {
+) -> IResult<
+    &'a [u8],
+    (
+        MshHeader,
+        impl ParsesSizeT<u64> + ParsesInt<i32> + ParsesFloat<f64>,
+    ),
+    MshParserError<&'a [u8]>,
+> {
     // TODO: Replace this expect
     let from_u8 =
         |items| str::FromStr::from_str(str::from_utf8(items).expect("Cannot parse UTF8 to digits"));
@@ -62,15 +71,29 @@ pub(crate) fn parse_header_section<'a>(
         None
     };
 
-    Ok((
-        input,
-        MshHeader {
-            version,
-            file_type,
-            size_t_size: data_size as usize,
-            int_size: 4,
-            float_size: 8,
-            endianness,
-        },
-    ))
+    let header = MshHeader {
+        version,
+        file_type,
+        size_t_size: data_size as usize,
+        int_size: 4,
+        float_size: 8,
+        endianness,
+    };
+    let parsers = num_parsers_from_header(&header);
+
+    Ok((input, (header, parsers)))
+}
+
+pub(crate) fn num_parsers_from_header<'a, U: MshUsizeT, I: MshIntT, F: MshFloatT>(
+    header: &'a MshHeader,
+) -> impl ParsesSizeT<U> + ParsesInt<I> + ParsesFloat<F> {
+    let size_t_parser = num_parsers::uint_parser::<U>(header.size_t_size, header.endianness);
+    let int_parser = num_parsers::int_parser::<I>(header.int_size, header.endianness);
+    let double_parser = num_parsers::float_parser::<F>(header.float_size, header.endianness);
+
+    num_parsers::NumParsers {
+        size_t_parser,
+        int_parser,
+        float_parser: double_parser,
+    }
 }

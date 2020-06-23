@@ -6,8 +6,10 @@ use num::traits::FromPrimitive;
 use crate::error::{
     always_error, context, make_error, MapMshError, MshParserError, MshParserErrorKind,
 };
-use crate::mshfile::{Element, ElementBlock, ElementType, Elements, MshHeader, MshIntT, MshUsizeT};
-use crate::parsers::num_parsers;
+use crate::mshfile::{Element, ElementBlock, ElementType, Elements, MshIntT, MshUsizeT};
+use crate::parsers::num_parser_traits::{
+    int_parser, size_t_parser, usize_parser, ParsesInt, ParsesSizeT,
+};
 use crate::parsers::{count_indexed, verify_or};
 
 struct ElementSectionHeader<U: MshUsizeT> {
@@ -18,16 +20,12 @@ struct ElementSectionHeader<U: MshUsizeT> {
 }
 
 pub(crate) fn parse_element_section<'a, 'b: 'a>(
-    header: &'a MshHeader,
+    parsers: impl ParsesSizeT<u64> + ParsesInt<i32>,
 ) -> impl Fn(&'b [u8]) -> IResult<&'b [u8], Elements<u64, i32>, MshParserError<&'b [u8]>> {
-    let header = header.clone();
     move |input| {
-        let int_parser = num_parsers::int_parser::<i32>(header.int_size, header.endianness);
-        let size_t_parser = num_parsers::uint_parser::<u64>(header.size_t_size, header.endianness);
-
         // Parse the section header
         let (input, element_section_header) = context("element section header", |input| {
-            parse_element_section_header(&size_t_parser, input)
+            parse_element_section_header(&parsers, input)
         })(input)?;
 
         let ElementSectionHeader {
@@ -46,14 +44,13 @@ pub(crate) fn parse_element_section<'a, 'b: 'a>(
         // Parse the individual element entity blocks
         let (input, element_entity_blocks) = count_indexed(
             |index, input| {
-                parse_element_entity(&size_t_parser, &int_parser, sparse_tags, input)
-                    .with_context_from(input, || {
-                        format!(
-                            "element entity block ({} of {})",
-                            index + 1,
-                            num_entity_blocks
-                        )
-                    })
+                parse_element_entity(&parsers, sparse_tags, input).with_context_from(input, || {
+                    format!(
+                        "element entity block ({} of {})",
+                        index + 1,
+                        num_entity_blocks
+                    )
+                })
             },
             num_entity_blocks,
         )(input)?;
@@ -71,23 +68,21 @@ pub(crate) fn parse_element_section<'a, 'b: 'a>(
     }
 }
 
-fn parse_element_section_header<'a, SizeTParser>(
-    size_t_parser: SizeTParser,
+fn parse_element_section_header<'a, U: MshUsizeT>(
+    parser: impl ParsesSizeT<U>,
     input: &'a [u8],
-) -> IResult<&'a [u8], ElementSectionHeader<u64>, MshParserError<&'a [u8]>>
-where
-    SizeTParser: for<'b> Fn(&'b [u8]) -> IResult<&'b [u8], u64, MshParserError<&'b [u8]>>,
-{
-    let to_usize_parser = num_parsers::usize_parser(&size_t_parser);
+) -> IResult<&'a [u8], ElementSectionHeader<U>, MshParserError<&'a [u8]>> {
+    let size_t_parser = size_t_parser(&parser);
+    let usize_parser = usize_parser(&parser);
 
     let (input, num_entity_blocks) =
-        context("number of element entity blocks", &to_usize_parser)(input)?;
+        context("number of element entity blocks", usize_parser)(input)?;
     let (input, num_elements) = context("total number of elements", &size_t_parser)(input)?;
     let (input, min_element_tag) = context(
         "min element tag",
         verify_or(
             &size_t_parser,
-            |&tag| tag != 0,
+            |&tag| tag != U::zero(),
             context(
                 "Element tag 0 is reserved for internal use",
                 always_error(MshParserErrorKind::InvalidTag),
@@ -117,26 +112,25 @@ where
     ))
 }
 
-fn parse_element_entity<'a, U, I, SizeTParser, IntParser>(
-    size_t_parser: SizeTParser,
-    int_parser: IntParser,
+fn parse_element_entity<'a, U, I>(
+    parser: impl ParsesSizeT<U> + ParsesInt<I>,
     sparse_tags: bool,
     input: &'a [u8],
 ) -> IResult<&'a [u8], ElementBlock<U, I>, MshParserError<&'a [u8]>>
 where
     U: MshUsizeT,
     I: MshIntT,
-    SizeTParser: for<'b> Fn(&'b [u8]) -> IResult<&'b [u8], U, MshParserError<&'b [u8]>>,
-    IntParser: for<'b> Fn(&'b [u8]) -> IResult<&'b [u8], I, MshParserError<&'b [u8]>>,
 {
-    let to_usize_parser = num_parsers::usize_parser(&size_t_parser);
+    let parser = &parser;
+    let int_parser = int_parser(parser);
+    let usize_parser = usize_parser(parser);
 
     let (input, entity_dim) = context("entity dimension", &int_parser)(input)?;
     let (input, entity_tag) = context("entity tag", &int_parser)(input)?;
     let (input, element_type) =
-        context("element type", move |i| parse_element_type(&int_parser, i))(input)?;
+        context("element type", move |i| parse_element_type(parser, i))(input)?;
     let (input_new, num_elements_in_block) =
-        context("number of elements in element block", to_usize_parser)(input)?;
+        context("number of elements in element block", usize_parser)(input)?;
 
     // Try to get the number of nodes per element
     let num_nodes_per_element = element_type.nodes().map_err(|_| {
@@ -149,7 +143,7 @@ where
     // Parse every element definition
     let (input, elements) = count_indexed(
         |index, input| {
-            parse_element(&size_t_parser, num_nodes_per_element, input)
+            parse_element(&parser, num_nodes_per_element, input)
                 .with_error(input, MshParserErrorKind::InvalidElementDefinition)
                 .with_context_from(input, || {
                     format!(
@@ -187,16 +181,15 @@ where
     ))
 }
 
-fn parse_element_type<'a, I, IntParser>(
-    int_parser: IntParser,
+fn parse_element_type<'a, I>(
+    parser: impl ParsesInt<I>,
     input: &'a [u8],
 ) -> IResult<&'a [u8], ElementType, MshParserError<&'a [u8]>>
 where
     I: MshIntT,
-    IntParser: Clone + Fn(&'a [u8]) -> IResult<&'a [u8], I, MshParserError<&'a [u8]>>,
 {
     // Read the raw integer representing the element type
-    let (input_new, element_type_raw) = int_parser(input)?;
+    let (input_new, element_type_raw) = parser.parse_int(input)?;
 
     // Try to convert it into i32 (because this is the underlying type of our enum)
     let element_type_raw = element_type_raw
@@ -212,21 +205,20 @@ where
     Ok((input_new, element_type))
 }
 
-fn parse_element<'a, U, SizeTParser>(
-    size_t_parser: SizeTParser,
+fn parse_element<'a, U>(
+    parser: impl ParsesSizeT<U>,
     num_nodes_per_element: usize,
     input: &'a [u8],
 ) -> IResult<&'a [u8], Element<U>, MshParserError<&'a [u8]>>
 where
     U: MshUsizeT,
-    SizeTParser: Fn(&'a [u8]) -> IResult<&'a [u8], U, MshParserError<&'a [u8]>>,
 {
-    let (input, element_tag) = size_t_parser(input)?;
+    let (input, element_tag) = parser.parse_size_t(input)?;
 
     let mut input = input;
     let mut node_tags = Vec::with_capacity(num_nodes_per_element);
     for _ in 0..num_nodes_per_element {
-        let (input_, node_tag) = size_t_parser(input)?;
+        let (input_, node_tag) = parser.parse_size_t(input)?;
         node_tags.push(node_tag);
         input = input_;
     }

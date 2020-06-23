@@ -87,7 +87,7 @@ fn parse_entity_section_header<'a, SizeTParser>(
 where
     SizeTParser: for<'b> Fn(&'b [u8]) -> IResult<&'b [u8], u64, MshParserError<&'b [u8]>>,
 {
-    let to_usize_parser = num_parsers::usize_parser(&size_t_parser);
+    let to_usize_parser = num_parsers::construct_usize_parser(&size_t_parser);
 
     let (input, num_points) = context("number of point entities", &to_usize_parser)(input)?;
     let (input, num_curves) = context("number of curve entities", &to_usize_parser)(input)?;
@@ -116,7 +116,7 @@ where
     IntParser: for<'b> Fn(&'b [u8]) -> IResult<&'b [u8], I, MshParserError<&'b [u8]>>,
     FloatParser: for<'b> Fn(&'b [u8]) -> IResult<&'b [u8], F, MshParserError<&'b [u8]>>,
 {
-    let to_usize_parser = num_parsers::usize_parser(&size_t_parser);
+    let to_usize_parser = num_parsers::construct_usize_parser(&size_t_parser);
 
     let (input, point_tag) = context(
         "entity tag",
@@ -173,7 +173,7 @@ macro_rules! single_entity_parser {
             IntParser: for<'b> Fn(&'b [u8]) -> IResult<&'b [u8], I, MshParserError<&'b [u8]>>,
             FloatParser: for<'b> Fn(&'b [u8]) -> IResult<&'b [u8], F, MshParserError<&'b [u8]>>,
         {
-            let to_usize_parser = num_parsers::usize_parser(&size_t_parser);
+            let to_usize_parser = num_parsers::construct_usize_parser(&size_t_parser);
 
             let (input, entity_tag) = context(
                 "entity tag",

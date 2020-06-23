@@ -81,7 +81,7 @@ fn parse_node_section_header<'a, SizeTParser>(
 where
     SizeTParser: for<'b> Fn(&'b [u8]) -> IResult<&'b [u8], u64, MshParserError<&'b [u8]>>,
 {
-    let to_usize_parser = num_parsers::usize_parser(&size_t_parser);
+    let to_usize_parser = num_parsers::construct_usize_parser(&size_t_parser);
 
     let (input, num_entity_blocks) =
         context("number of node entity blocks", &to_usize_parser)(input)?;
@@ -140,7 +140,7 @@ where
     IntParser: for<'b> Fn(&'b [u8]) -> IResult<&'b [u8], I, MshParserError<&'b [u8]>>,
     FloatParser: for<'b> Fn(&'b [u8]) -> IResult<&'b [u8], F, MshParserError<&'b [u8]>>,
 {
-    let to_usize_parser = num_parsers::usize_parser(&size_t_parser);
+    let to_usize_parser = num_parsers::construct_usize_parser(&size_t_parser);
 
     let (input, entity_dim) = context("entity dimension", &int_parser)(input)?;
     let (input, entity_tag) = context("entity tag", &int_parser)(input)?;

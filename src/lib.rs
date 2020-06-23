@@ -119,7 +119,7 @@ pub fn parse_msh_bytes<'a>(
 fn private_parse_msh_bytes<'a>(
     input: &'a [u8],
 ) -> IResult<&'a [u8], MshFile<u64, i32, f64>, MshParserError<&'a [u8]>> {
-    let (input, header) = context(
+    let (input, (header, parsers)) = context(
         "MSH file header section",
         parsers::parse_delimited_block(
             terminated(tag("$MeshFormat"), br),
@@ -181,7 +181,7 @@ fn private_parse_msh_bytes<'a>(
             let (input_, elements) = parse_section!(
                 "$Elements",
                 "$EndElements",
-                |i| context("element section", parse_element_section(&header))(i),
+                |i| context("element section", parse_element_section(&parsers))(i),
                 input
             )?;
 

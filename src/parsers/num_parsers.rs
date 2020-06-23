@@ -12,12 +12,29 @@ use num::Integer;
 use num_traits::{Float, NumCast, Signed, Unsigned};
 
 use crate::error::{always_error, make_error, MshParserError, MshParserErrorKind, ValueType};
-use crate::mshfile::MshUsizeT;
+use crate::mshfile::{MshFloatT, MshIntT, MshUsizeT};
 use crate::parsers::{recognize_integer, ws};
 
 // TODO: Replace the unimplemented! calls with errors
 
-pub fn usize_parser<U, SizeTParser>(
+pub(crate) struct NumParsers<
+    U: MshUsizeT,
+    I: MshIntT,
+    F: MshFloatT,
+    SizeTParser,
+    IntParser,
+    DoubleParser,
+> where
+    for<'a> SizeTParser: Fn(&'a [u8]) -> IResult<&'a [u8], U, MshParserError<&'a [u8]>>,
+    for<'a> IntParser: Fn(&'a [u8]) -> IResult<&'a [u8], I, MshParserError<&'a [u8]>>,
+    for<'a> DoubleParser: Fn(&'a [u8]) -> IResult<&'a [u8], F, MshParserError<&'a [u8]>>,
+{
+    pub(crate) size_t_parser: SizeTParser,
+    pub(crate) int_parser: IntParser,
+    pub(crate) float_parser: DoubleParser,
+}
+
+pub fn construct_usize_parser<U, SizeTParser>(
     size_t_parser: SizeTParser,
 ) -> impl for<'a> Fn(&'a [u8]) -> IResult<&'a [u8], usize, MshParserError<&'a [u8]>>
 where

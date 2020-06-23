@@ -1,26 +1,64 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::hash::Hash;
+use std::str;
 
 use nom::number::Endianness;
 
 use num::Integer;
 use num_derive::FromPrimitive;
-use num_traits::{Float, FromPrimitive, Signed, ToPrimitive, Unsigned};
+use num_traits::{Float, FromPrimitive, NumCast, Signed, ToPrimitive, Unsigned};
 
 /// Super-trait for all purposes in the MSH parser that require `size_t` like types
 pub trait MshUsizeT:
-    Unsigned + Integer + ToPrimitive + FromPrimitive + Clone + Hash + Debug
+    Unsigned
+    + Integer
+    + NumCast
+    + ToPrimitive
+    + FromPrimitive
+    + Copy
+    + Clone
+    + Hash
+    + Debug
+    + str::FromStr
 {
 }
 /// Super-trait for all purposes in the MSH parser that require `int` like types
-pub trait MshIntT: Signed + Integer + ToPrimitive + FromPrimitive + Clone + Debug {}
+pub trait MshIntT:
+    Signed + Integer + NumCast + ToPrimitive + FromPrimitive + Copy + Clone + Debug + str::FromStr
+{
+}
 /// Super-trait for all purposes in the MSH parser that require `float` like types
-pub trait MshFloatT: Float + ToPrimitive + Clone + Debug {}
+pub trait MshFloatT: Float + ToPrimitive + Copy + Clone + Debug + str::FromStr {}
 
-impl<T: Unsigned + Integer + ToPrimitive + FromPrimitive + Clone + Hash + Debug> MshUsizeT for T {}
-impl<T: Signed + Integer + ToPrimitive + FromPrimitive + Clone + Debug> MshIntT for T {}
-impl<T: Float + ToPrimitive + Clone + Debug> MshFloatT for T {}
+impl<
+        T: Unsigned
+            + Integer
+            + NumCast
+            + ToPrimitive
+            + FromPrimitive
+            + Copy
+            + Clone
+            + Hash
+            + Debug
+            + str::FromStr,
+    > MshUsizeT for T
+{
+}
+impl<
+        T: Signed
+            + Integer
+            + NumCast
+            + ToPrimitive
+            + FromPrimitive
+            + Copy
+            + Clone
+            + Debug
+            + str::FromStr,
+    > MshIntT for T
+{
+}
+impl<T: Float + ToPrimitive + Copy + Clone + Debug + str::FromStr> MshFloatT for T {}
 
 /// A parsed MSH file containing mesh and header data
 ///
