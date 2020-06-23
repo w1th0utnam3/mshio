@@ -1,6 +1,6 @@
 # mshio
 
-[![On crates.io](https://meritbadge.herokuapp.com/mshio)](https://crates.io/crates/mshio)
+[![On crates.io](https://img.shields.io/crates/v/mshio)](https://crates.io/crates/mshio)
 [![On docs.rs](https://docs.rs/mshio/badge.svg)](https://docs.rs/mshio/)
 [![Build Status](https://github.com/w1th0utnam3/mshio/workflows/CI/badge.svg)](https://github.com/w1th0utnam3/mshio/actions)
 
@@ -27,11 +27,11 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 ```
 
-If parsing was successful, the [`parse_msh_bytes`](fn.parse_msh_bytes.html) function returns a
-[`MshFile`](mshfile/struct.MshFile.html) instance. The structure of `MshFile` closely mirrors
+If parsing was successful, the [`parse_msh_bytes`](https://docs.rs/mshio/latest/mshio/fn.parse_msh_bytes.html) function returns a
+[`MshFile`](https://docs.rs/mshio/latest/mshio/mshfile/struct.MshFile.html) instance. The structure of `MshFile` closely mirrors
 the file format definition. For example the `MeshData` associated to a `MshFile` may contain an
-optional [`Elements`](mshfile/struct.Elements.html) section. This `Elements` section can contain
-an arbitray number of [`ElementBlock`](mshfile/struct.ElementBlock.html) instances, where each
+optional [`Elements`](https://docs.rs/mshio/latest/mshio/mshfile/struct.Elements.html) section. This `Elements` section can contain
+an arbitray number of [`ElementBlock`](https://docs.rs/mshio/latest/mshio/mshfile/struct.ElementBlock.html) instances, where each
 `ElementBlock` only contains elements of the same type and dimension.
 
 Currently, only the following sections of MSH files are actually parsed: `Entities`, `Nodes`,
