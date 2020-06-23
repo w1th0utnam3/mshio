@@ -17,12 +17,12 @@ use crate::parsers::{recognize_integer, ws};
 
 // TODO: Replace the unimplemented! calls with errors
 
-pub fn usize_parser<'a, U, SizeTParser>(
+pub fn usize_parser<U, SizeTParser>(
     size_t_parser: SizeTParser,
-) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], usize, MshParserError<&'a [u8]>>
+) -> impl for<'a> Fn(&'a [u8]) -> IResult<&'a [u8], usize, MshParserError<&'a [u8]>>
 where
     U: MshUsizeT,
-    SizeTParser: Fn(&'a [u8]) -> IResult<&'a [u8], U, MshParserError<&'a [u8]>>,
+    SizeTParser: for<'a> Fn(&'a [u8]) -> IResult<&'a [u8], U, MshParserError<&'a [u8]>>,
 {
     move |input| {
         let (new_input, parse_result) = size_t_parser(input)?;
@@ -33,10 +33,10 @@ where
     }
 }
 
-pub fn uint_parser<'a, T: Unsigned + Integer + NumCast + str::FromStr>(
+pub fn uint_parser<T: Unsigned + Integer + NumCast + str::FromStr>(
     source_size: usize,
     endianness: Option<Endianness>,
-) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>> {
+) -> impl for<'a> Fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>> {
     macro_rules! generate_parser {
         ($parser:expr) => {
             (|i| match $parser(i) {
@@ -48,7 +48,7 @@ pub fn uint_parser<'a, T: Unsigned + Integer + NumCast + str::FromStr>(
                     }
                 }
                 Err(e) => Err(e),
-            }) as fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>>
+            }) as for<'a> fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>>
         };
     }
 
@@ -92,15 +92,15 @@ pub fn uint_parser<'a, T: Unsigned + Integer + NumCast + str::FromStr>(
                     }
                 },
                 Err(e) => Err(e),
-            }) as fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>>
+            }) as for<'a> fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>>
         }
     }
 }
 
-pub fn int_parser<'a, T: Signed + Integer + NumCast + str::FromStr>(
+pub fn int_parser<T: Signed + Integer + NumCast + str::FromStr>(
     source_size: usize,
     endianness: Option<Endianness>,
-) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>> {
+) -> impl for<'a> Fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>> {
     macro_rules! generate_parser {
         ($parser:expr) => {
             (|i| match $parser(i) {
@@ -112,7 +112,7 @@ pub fn int_parser<'a, T: Signed + Integer + NumCast + str::FromStr>(
                     }
                 }
                 Err(e) => Err(e),
-            }) as fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>>
+            }) as for<'a> fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>>
         };
     }
 
@@ -154,15 +154,15 @@ pub fn int_parser<'a, T: Signed + Integer + NumCast + str::FromStr>(
                     Err(_) => always_error(MshParserErrorKind::ValueOutOfRange(ValueType::Int))(i),
                 },
                 Err(e) => Err(e),
-            }) as fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>>
+            }) as for<'a> fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>>
         }
     }
 }
 
-pub fn float_parser<'a, T: Float + NumCast>(
+pub fn float_parser<T: Float + NumCast>(
     source_size: usize,
     endianness: Option<Endianness>,
-) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>> {
+) -> impl for<'a> Fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>> {
     macro_rules! generate_parser {
         ($parser:expr) => {
             (|i| match $parser(i) {
@@ -174,7 +174,7 @@ pub fn float_parser<'a, T: Float + NumCast>(
                     }
                 }
                 Err(e) => Err(e),
-            }) as fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>>
+            }) as for<'a> fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>>
         };
     }
 
@@ -209,7 +209,7 @@ pub fn float_parser<'a, T: Float + NumCast>(
                     }
                 }
                 Err(e) => Err(e),
-            }) as fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>>
+            }) as for<'a> fn(&'a [u8]) -> IResult<&'a [u8], T, MshParserError<&'a [u8]>>
         }
     }
 }

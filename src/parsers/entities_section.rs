@@ -85,7 +85,7 @@ fn parse_entity_section_header<'a, SizeTParser>(
     input: &'a [u8],
 ) -> IResult<&'a [u8], EntitySectionHeader, MshParserError<&'a [u8]>>
 where
-    SizeTParser: Fn(&'a [u8]) -> IResult<&'a [u8], u64, MshParserError<&'a [u8]>>,
+    SizeTParser: for<'b> Fn(&'b [u8]) -> IResult<&'b [u8], u64, MshParserError<&'b [u8]>>,
 {
     let to_usize_parser = num_parsers::usize_parser(&size_t_parser);
 
@@ -112,9 +112,9 @@ fn parse_point<'a, U: MshUsizeT, I: MshIntT, F: MshFloatT, SizeTParser, IntParse
     input: &'a [u8],
 ) -> IResult<&'a [u8], Point<I, F>, MshParserError<&'a [u8]>>
 where
-    SizeTParser: Fn(&'a [u8]) -> IResult<&'a [u8], U, MshParserError<&'a [u8]>>,
-    IntParser: Fn(&'a [u8]) -> IResult<&'a [u8], I, MshParserError<&'a [u8]>>,
-    FloatParser: Fn(&'a [u8]) -> IResult<&'a [u8], F, MshParserError<&'a [u8]>>,
+    SizeTParser: for<'b> Fn(&'b [u8]) -> IResult<&'b [u8], U, MshParserError<&'b [u8]>>,
+    IntParser: for<'b> Fn(&'b [u8]) -> IResult<&'b [u8], I, MshParserError<&'b [u8]>>,
+    FloatParser: for<'b> Fn(&'b [u8]) -> IResult<&'b [u8], F, MshParserError<&'b [u8]>>,
 {
     let to_usize_parser = num_parsers::usize_parser(&size_t_parser);
 
@@ -169,9 +169,9 @@ macro_rules! single_entity_parser {
             input: &'a [u8],
         ) -> IResult<&'a [u8], $entity_type<I, F>, MshParserError<&'a [u8]>>
         where
-            SizeTParser: Fn(&'a [u8]) -> IResult<&'a [u8], U, MshParserError<&'a [u8]>>,
-            IntParser: Fn(&'a [u8]) -> IResult<&'a [u8], I, MshParserError<&'a [u8]>>,
-            FloatParser: Fn(&'a [u8]) -> IResult<&'a [u8], F, MshParserError<&'a [u8]>>,
+            SizeTParser: for<'b> Fn(&'b [u8]) -> IResult<&'b [u8], U, MshParserError<&'b [u8]>>,
+            IntParser: for<'b> Fn(&'b [u8]) -> IResult<&'b [u8], I, MshParserError<&'b [u8]>>,
+            FloatParser: for<'b> Fn(&'b [u8]) -> IResult<&'b [u8], F, MshParserError<&'b [u8]>>,
         {
             let to_usize_parser = num_parsers::usize_parser(&size_t_parser);
 
