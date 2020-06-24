@@ -78,11 +78,14 @@ use parsers::{
     parse_element_section, parse_entity_section, parse_header_section, parse_node_section,
 };
 
-// TODO: Instantiate parsers only once
+// TODO: Error instead of panic on num_parser construction if size of the data type is not supported
+// TODO: Reconsider naming of the MshUsizeT etc. and num parser trait names, make them consistent
+// TODO: Doc strings for the new num_parser trait interface
+
+// TODO: Make section parsers generic over data types (i.e. don't mandate f64, u64, i32)
 // TODO: Unify element and node section parsing
 //  (e.g. a single section parser, then per section type one header and one content parser)
 // TODO: Unify entity parsing (currently, point parsers and the curve/surface/volume parsers are separate)
-// TODO: Make section parsers generic over data types (i.e. don't mandate f64, u64, i32)
 
 // TODO: Implement parser for physical groups
 // TODO: Log in the MeshData struct which unknown sections were ignored
@@ -158,7 +161,7 @@ fn private_parse_msh_bytes<'a>(
             let (input_, entities) = parse_section!(
                 "$Entities",
                 "$EndEntities",
-                |i| context("entity section", parse_entity_section(&header))(i),
+                |i| context("entity section", parse_entity_section(&parsers))(i),
                 input
             )?;
 
