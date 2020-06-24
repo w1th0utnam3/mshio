@@ -7,8 +7,10 @@ use crate::error::{
     always_error, context, context_from, error, make_error, MapMshError, MshParserError,
     MshParserErrorKind,
 };
-use crate::mshfile::{MshFloatT, MshHeader, MshIntT, MshUsizeT, Node, NodeBlock, Nodes};
-use crate::parsers::num_parsers;
+use crate::mshfile::{MshFloatT, MshIntT, MshUsizeT, Node, NodeBlock, Nodes};
+use crate::parsers::num_parser_traits::{
+    float_parser, int_parser, size_t_parser, usize_parser, ParsesFloat, ParsesInt, ParsesSizeT,
+};
 use crate::parsers::{count_indexed, verify_or};
 
 struct NodeSectionHeader<U: MshUsizeT> {
@@ -19,17 +21,12 @@ struct NodeSectionHeader<U: MshUsizeT> {
 }
 
 pub(crate) fn parse_node_section<'a, 'b: 'a>(
-    header: &'a MshHeader,
+    parsers: impl ParsesSizeT<u64> + ParsesInt<i32> + ParsesFloat<f64>,
 ) -> impl Fn(&'b [u8]) -> IResult<&'b [u8], Nodes<u64, i32, f64>, MshParserError<&'b [u8]>> {
-    let header = header.clone();
     move |input| {
-        let size_t_parser = num_parsers::uint_parser::<u64>(header.size_t_size, header.endianness);
-        let int_parser = num_parsers::int_parser::<i32>(header.int_size, header.endianness);
-        let double_parser = num_parsers::float_parser::<f64>(header.float_size, header.endianness);
-
         // Parse the section header
         let (input, node_section_header) = context("node section header", |input| {
-            parse_node_section_header(&size_t_parser, input)
+            parse_node_section_header(&parsers, input)
         })(input)?;
 
         let NodeSectionHeader {
@@ -48,14 +45,7 @@ pub(crate) fn parse_node_section<'a, 'b: 'a>(
         // Parse the individual node entity blocks
         let (input, node_entity_blocks) = count_indexed(
             |index, input| {
-                parse_node_entity(
-                    &size_t_parser,
-                    &int_parser,
-                    &double_parser,
-                    sparse_tags,
-                    input,
-                )
-                .with_context_from(input, || {
+                parse_node_entity(&parsers, sparse_tags, input).with_context_from(input, || {
                     format!("node entity block ({} of {})", index + 1, num_entity_blocks)
                 })
             },
@@ -74,23 +64,20 @@ pub(crate) fn parse_node_section<'a, 'b: 'a>(
     }
 }
 
-fn parse_node_section_header<'a, SizeTParser>(
-    size_t_parser: SizeTParser,
+fn parse_node_section_header<'a, U: MshUsizeT>(
+    parser: impl ParsesSizeT<U>,
     input: &'a [u8],
-) -> IResult<&'a [u8], NodeSectionHeader<u64>, MshParserError<&'a [u8]>>
-where
-    SizeTParser: for<'b> Fn(&'b [u8]) -> IResult<&'b [u8], u64, MshParserError<&'b [u8]>>,
-{
-    let to_usize_parser = num_parsers::construct_usize_parser(&size_t_parser);
+) -> IResult<&'a [u8], NodeSectionHeader<U>, MshParserError<&'a [u8]>> {
+    let size_t_parser = size_t_parser(&parser);
+    let usize_parser = usize_parser(&parser);
 
-    let (input, num_entity_blocks) =
-        context("number of node entity blocks", &to_usize_parser)(input)?;
+    let (input, num_entity_blocks) = context("number of node entity blocks", &usize_parser)(input)?;
     let (input, num_nodes) = context("total number of elements", &size_t_parser)(input)?;
     let (input, min_node_tag) = context(
         "min node tag",
         verify_or(
             &size_t_parser,
-            |&tag| tag != 0,
+            |&tag| tag != U::zero(),
             context(
                 "Node tag 0 is reserved for internal use",
                 always_error(MshParserErrorKind::InvalidTag),
@@ -120,27 +107,15 @@ where
     ))
 }
 
-fn parse_node_entity<
-    'a,
-    U: MshUsizeT,
-    I: MshIntT,
-    F: MshFloatT,
-    SizeTParser,
-    IntParser,
-    FloatParser,
->(
-    size_t_parser: SizeTParser,
-    int_parser: IntParser,
-    double_parser: FloatParser,
+fn parse_node_entity<'a, U: MshUsizeT, I: MshIntT, F: MshFloatT>(
+    parser: impl ParsesSizeT<U> + ParsesInt<I> + ParsesFloat<F>,
     sparse_tags: bool,
     input: &'a [u8],
-) -> IResult<&'a [u8], NodeBlock<U, I, F>, MshParserError<&'a [u8]>>
-where
-    SizeTParser: for<'b> Fn(&'b [u8]) -> IResult<&'b [u8], U, MshParserError<&'b [u8]>>,
-    IntParser: for<'b> Fn(&'b [u8]) -> IResult<&'b [u8], I, MshParserError<&'b [u8]>>,
-    FloatParser: for<'b> Fn(&'b [u8]) -> IResult<&'b [u8], F, MshParserError<&'b [u8]>>,
-{
-    let to_usize_parser = num_parsers::construct_usize_parser(&size_t_parser);
+) -> IResult<&'a [u8], NodeBlock<U, I, F>, MshParserError<&'a [u8]>> {
+    let size_t_parser = size_t_parser(&parser);
+    let usize_parser = usize_parser(&parser);
+    let int_parser = int_parser(&parser);
+    let float_parser = float_parser(&parser);
 
     let (input, entity_dim) = context("entity dimension", &int_parser)(input)?;
     let (input, entity_tag) = context("entity tag", &int_parser)(input)?;
@@ -156,7 +131,7 @@ where
         ),
     )(input)?;
     let (input, num_nodes_in_block) =
-        context("number of nodes in element block", &to_usize_parser)(input)?;
+        context("number of nodes in element block", &usize_parser)(input)?;
 
     let parametric = parametric != I::zero();
     if parametric {
@@ -201,9 +176,9 @@ where
 
     // Closure that parse a single node coordinate tuple
     let parse_node = |input| {
-        let (input, x) = context("x coordinate", &double_parser)(input)?;
-        let (input, y) = context("y coordinate", &double_parser)(input)?;
-        let (input, z) = context("z coordinate", &double_parser)(input)?;
+        let (input, x) = context("x coordinate", &float_parser)(input)?;
+        let (input, y) = context("y coordinate", &float_parser)(input)?;
+        let (input, z) = context("z coordinate", &float_parser)(input)?;
 
         Ok((input, Node { x, y, z }))
     };

@@ -89,6 +89,7 @@ use parsers::{
 // TODO: Add more .context() calls/more specialized errors
 // TODO: Replace remaining unimplemented!/expect calls with errors
 
+// TODO: Test the float values parsed from a binary MSH file
 // TODO: Add tests of errors in node section
 // TODO: Add tests of errors in entity section
 // TODO: Add tests that try to parse a mesh with u64 indices to u32
@@ -169,7 +170,7 @@ fn private_parse_msh_bytes<'a>(
             let (input_, nodes) = parse_section!(
                 "$Nodes",
                 "$EndNodes",
-                |i| context("node section", parse_node_section(&header))(i),
+                |i| context("node section", parse_node_section(&parsers))(i),
                 input
             )?;
 
