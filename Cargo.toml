@@ -1,6 +1,6 @@
 [package]
 name = "mshio"
-version = "0.4.1"
+version = "0.4.2"
 authors = ["Fabian Löschner"]
 license = "MIT"
 description = "Parser for the Gmsh MSH file format version 4.1"
