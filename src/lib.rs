@@ -23,24 +23,26 @@
 //!
 //! If parsing was successful, the [`parse_msh_bytes`](fn.parse_msh_bytes.html) function returns a
 //! [`MshFile`](mshfile/struct.MshFile.html) instance. The structure of `MshFile` closely mirrors
-//! the file format definition. For example the `MeshData` associated to a `MshFile` may contain an
+//! the MSH format specification. For example the `MeshData` associated to a `MshFile` may contain an
 //! optional [`Elements`](mshfile/struct.Elements.html) section. This `Elements` section can contain
 //! an arbitray number of [`ElementBlock`](mshfile/struct.ElementBlock.html) instances, where each
 //! `ElementBlock` only contains elements of the same type and dimension.
 //!
 //! Currently, only the following sections of MSH files are actually parsed: `Entities`, `Nodes`,
 //! `Elements`. All other sections are silently ignored, if they follow the pattern of being
-//! delimited by `$SectionName` and `$EndSectionName`.
+//! delimited by `$SectionName` and `$EndSectionName` (in accordance to the MSH format specification).
 //!
-//! Note that the mesh definition is not checked for consistency. This means, that a parsed element
-//! may refer to node indices that are not present in the node section (if the MSH file contains
-//! such an inconsistency). In the future, utitliy functions may be added to check this.
+//! Note that the actual values are not checked for consistency beyond what is defined in the MSH format specification.
+//! This means, that a parsed element may refer to node indices that are not present in the node section (if the MSH file already contains
+//! such an inconsistency). In the future, utility functions may be added to check this.
 //!
-//! Although the `MshFile` struct and all related structs are generic over their float and integer
-//! types, the `parse_msh_bytes` function enforces the usage of `f64`, `i32` and `u64` types as
-//! we did not encounter MSH files with different types and cannot test it. The MSH format
-//! documentation does not specify the size of the float and integer types.
-//! Narrowing conversions should be performed manually by the user after parsing the file.
+//! Although the `MshFile` struct and all related structs are generic over their value types,
+//! the `parse_msh_bytes` function enforces the usage of `u64`, `i32` and `f64` as output value types 
+//! corresponding to the MSH input value types `size_t`, `int` and `double`
+//! (of course `size_t` values will still be parsed as having the size specified in the file header).
+//! We did not encounter MSH files using different types (e.g. 64 bit integers or 32 bit floats) and therefore cannot test it. 
+//! In addition, the MSH format specification does not specify the size of the float and integer types.
+//! If the user desires narrowing conversions, they should be performed manually after parsing the file.
 //!
 //! Note that when loading collections of elements/nodes and other entities, the parser checks if
 //! the number of these objects can be represented in the system's `usize` type. If this is not the
