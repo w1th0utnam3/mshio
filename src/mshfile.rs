@@ -586,7 +586,10 @@ pub enum ElementType {
 }
 
 impl ElementType {
-    /// Returns the number of nodes per element of an element type
+    /// Returns the number of nodes per element of the given type
+    /// 
+    /// Not that for some Gmsh supported element types there is no fixed number of nodes per elements.
+    /// This crate currently does not support parsing of such elements.
     pub fn nodes(&self) -> Result<usize, ()> {
         Ok(match self {
             ElementType::Lin2 => 2,

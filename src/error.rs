@@ -51,45 +51,64 @@ where
     move |i: I| f(i.clone()).with_context(i, ctx())
 }
 
+/// Enum for the categories of value types that MSH files contain
 #[derive(Copy, Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum ValueType {
+    /// The unsigned integer or size_t type
     #[error("unsigned integer")]
     UnsignedInt,
+    /// The integer or int type
     #[error("integer")]
     Int,
+    /// The floating point or double type
     #[error("floating point")]
     Float,
 }
 
+/// Enum of all error kinds that may be part of a [`MshParserError`](struct.MshParserError.html) backtrace
 #[rustfmt::skip]
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum MshParserErrorKind {
-    #[error("MSH file of unsupported version loaded. Only the MSH file format specification of version 4.1 is supported.")]
+    /// Error indicating that the MSH file header specifies an unsupported file format revision (only 4.1 is supported)
+    #[error("MSH file of unsupported format version loaded. Only the MSH file format specification of revision 4.1 is supported.")]
     UnsupportedMshVersion,
-    #[error("The MSH file header is not valid.")]
-    InvalidFileHeader,
-    #[error("Unexpected tokens found after file header. Expected a section according to the MSH file format specification.")]
-    InvalidSectionHeader,
-    #[error("An unknown element type was encountered in the MSH file.")]
-    UnknownElement,
-    #[error("There are too many entities to parse them into contiguous memory on the current system (usize type too small).")]
-    TooManyEntities,
-    #[error("A {0} value could not be parsed because it was out of range of the target data type.")]
-    ValueOutOfRange(ValueType),
+    /// Error indicating that the MSH file header specifies a size for a value type which is not supported by this crate
     #[error("There is no parser available to parse binary {0} values with a size of {1}.")]
     UnsupportedTypeSize(ValueType, usize),
-    #[error("An invalid entity tag value was detected.")]
+    /// Error indicating that the MSH file header does not conform to the file format specification
+    #[error("The MSH file header is not valid.")]
+    InvalidFileHeader,
+    /// Error indicating that the MSH body contains tokens that do not form a valid section
+    #[error("Unexpected tokens found after file header. Expected a section according to the MSH file format specification.")]
+    InvalidSectionHeader,
+    /// Error indicating that an element entity contains an [`ElementType`](../mshfile/enum.ElementType.html) that is not supported by this crate
+    #[error("An unknown element type was encountered in the MSH file.")]
+    UnknownElement,
+    /// Error indicating that a section contains too many entities (e.g. nodes, elements, groups), i.e. they do not fit into a `Vec` because `usize::MAX` is too small
+    #[error("There are too many entities to parse them into contiguous memory on the current system (usize type too small).")]
+    TooManyEntities,
+    /// Error indicating that a value was encountered in the MSH file that is out of range of the target value type
+    #[error("A {0} value could not be parsed because it was out of range of the target data type.")]
+    ValueOutOfRange(ValueType),
+    /// Error indicating that an entity tag with an invalid value was encountered, e.g. the Gmsh internally reserved value of 0 or a `max_tag` that is smaller than a `min_tag`
+    #[error("An invalid entity tag value was encountered, e.g. the internally reserved value of 0, or a max_tag that is smaller than a min_tag")]
     InvalidTag,
-    #[error("An invalid parameter value was detected.")]
+    /// Error indicating that an invalid parameter value was encountered
+    #[error("An invalid parameter value was encountered.")]
     InvalidParameter,
+    /// Error indicating that a single element definition could not be parsed, e.g. it did not provide the correct number of node indices corresponding to the [`ElementType`](../mshfile/enum.ElementType.html) of the element block
     #[error("An invalid element definition was encountered.")]
     InvalidElementDefinition,
+    /// Error indicating that a single node definition could not be parsed, e.g. it does not contain three parsable floating point values for its coordinates
     #[error("An invalid node definition was encountered.")]
     InvalidNodeDefinition,
+    /// Error indicating that the MSH file contains a MSH format feature that is not yet supported by this crate
     #[error("An unimplemented feature was detected.")]
     Unimplemented,
+    /// Additional context information for pretty printing the backtrace for a user
     #[error("{0}")]
     Context(Cow<'static,str>),
+    /// Internal nom parser error, such as an error when parsing a single digit
     #[error("{0:?}")]
     NomError(ErrorKind),
 }
@@ -122,9 +141,9 @@ impl From<ErrorKind> for MshParserErrorKind {
     }
 }
 
-/// Error type returned by the MSH parser if parsing fails without panic
+/// Error type returned by the crate when parsing fails
 pub struct MshParserError<I> {
-    /// The error backtrace
+    /// Error backtrace that contains per level a reference into the input where the error ocurred and the corresponding error kind
     pub backtrace: Vec<(I, MshParserErrorKind)>,
 }
 
@@ -164,24 +183,24 @@ impl<I> MshParserError<I> {
         self.with_append(input, MshParserErrorKind::Context(ctx.into()))
     }
 
-    /// Iterator to the first error in the backtrace that is actually a MSH error
+    /// Iterator that skips all errors in the beginning of the backtrace that are not actual MSH format errors (i.e. internal nom parser errors)
     pub fn begin_msh_errors(&self) -> impl Iterator<Item = &(I, MshParserErrorKind)> {
         self.backtrace.iter().skip_while(|(_, e)| e.is_nom_error())
     }
 
-    /// Iterator to the first error in the backtrace that is actually a MSH error
+    /// Iterator over all errors in the backtrace that are actual MSH format errors (i.e. filters out all internal nom parser errors)
     pub fn filter_msh_errors(&self) -> impl Iterator<Item = &(I, MshParserErrorKind)> {
         self.backtrace.iter().filter(|(_, e)| !e.is_nom_error())
     }
 
-    /// Returns the kind of the first error in the backtrace that is not an internal nom error
+    /// Returns the kind of the first error in the backtrace that is an actual MSH format error kind (i.e. skips internal nom parser errors)
     pub fn first_msh_error(&self) -> Option<MshParserErrorKind> {
         self.begin_msh_errors().next().map(|(_, ek)| ek).cloned()
     }
 }
 
 impl<I: Clone> MshParserError<I> {
-    /// Returns a backtrace of all errors, excluding the first internal nom errors
+    /// Returns a backtrace containing only the errors that are actual MSH format errors (i.e. without internal nom parser errors)
     pub fn filtered_backtrace(&self) -> Vec<(I, MshParserErrorKind)> {
         self.filter_msh_errors().cloned().collect()
     }
